@@ -51,7 +51,34 @@ public class UIRenderedCanvasBehavior : MonoBehaviour
             }
 
             yield return new WaitForSeconds(interval);
-            ApplyVrUiLayerRecursive(transform);
+            ApplyVrUiLayerToLateChildren(transform);
+        }
+    }
+
+    // Deliberately NOT a blanket SetLayerRecursive. NativeVrUiRoot suppresses the stock menu by
+    // disabling its Canvas components rather than by moving layers, so promoting those subtrees to
+    // the VR UI layer makes the stock menu render alongside the native one the moment the game
+    // re-enables a canvas. Skip disabled canvases entirely and leave anything already on a NOVR
+    // layer alone.
+    private static void ApplyVrUiLayerToLateChildren(Transform root)
+    {
+        var vrUiLayer = (int)LayerHelper.GetVrUiLayer();
+        var vrUiCaptureLayer = (int)LayerHelper.GetVrUiCaptureLayer();
+
+        if (root.TryGetComponent<Canvas>(out var canvas) && !canvas.enabled)
+        {
+            return;
+        }
+
+        var currentLayer = root.gameObject.layer;
+        if (currentLayer != vrUiLayer && currentLayer != vrUiCaptureLayer)
+        {
+            root.gameObject.layer = vrUiLayer;
+        }
+
+        for (var index = 0; index < root.childCount; index++)
+        {
+            ApplyVrUiLayerToLateChildren(root.GetChild(index));
         }
     }
 
