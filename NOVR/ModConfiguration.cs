@@ -20,6 +20,8 @@ public class ModConfiguration
     public readonly ConfigEntry<float> HudScale;
     public readonly ConfigEntry<float> CompassVerticalOffset;
     public readonly ConfigEntry<int> SinglePlayerMinimumRank;
+    public readonly ConfigEntry<float> SinglePlayerMinimumFunds;
+    public readonly ConfigEntry<bool> DisableTrees;
     public readonly ConfigEntry<float> CockpitSeatForwardOffset;
     public readonly ConfigEntry<float> ExternalViewDistance;
     public readonly ConfigEntry<float> VrUiLayerRefreshInterval;
@@ -74,6 +76,20 @@ public class ModConfiguration
             new ConfigDescription(
                 "Raises your rank in stock single player missions so rank-gated aircraft are selectable, for missions whose starting rank is baked into the game assets. 0 disables it. Only applies while you are the host - on another player's server rank is server-authoritative and this does nothing.",
                 new AcceptableValueRange<int>(0, 50)));
+
+        SinglePlayerMinimumFunds = config.Bind(
+            "Gameplay",
+            "Single Player Minimum Funds",
+            0.0f,
+            new ConfigDescription(
+                "Holds your faction's funds at this floor in stock single player missions, whose starting balance is baked into the game assets. 0 disables it. Hosting only - on another player's server funds are server-authoritative and this does nothing.",
+                new AcceptableValueRange<float>(0.0f, 10000000.0f)));
+
+        DisableTrees = config.Bind(
+            "Graphics",
+            "Disable Trees",
+            false,
+            "Forces the tree draw range to zero. The stock graphics menu only has a tree distance slider with no off switch, so its lowest setting still draws nearby trees. Helps a lot with VR GPU cost.");
 
         CockpitSeatForwardOffset = config.Bind(
             "Camera",
