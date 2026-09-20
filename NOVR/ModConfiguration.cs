@@ -22,6 +22,7 @@ public class ModConfiguration
     public readonly ConfigEntry<int> SinglePlayerMinimumRank;
     public readonly ConfigEntry<float> SinglePlayerMinimumFunds;
     public readonly ConfigEntry<bool> DisableTrees;
+    public readonly ConfigEntry<bool> HideChatLayoutSpacers;
     public readonly ConfigEntry<float> CockpitSeatForwardOffset;
     public readonly ConfigEntry<float> ExternalViewDistance;
     public readonly ConfigEntry<float> VrUiLayerRefreshInterval;
@@ -90,6 +91,12 @@ public class ModConfiguration
             "Disable Trees",
             false,
             "Forces the tree draw range to zero. The stock graphics menu only has a tree distance slider with no off switch, so its lowest setting still draws nearby trees. Helps a lot with VR GPU cost.");
+
+        HideChatLayoutSpacers = config.Bind(
+            "HUD",
+            "Hide Chat Layout Spacers",
+            true,
+            "Disables the Image on ChatCanvas/TopPanel's LeftSpace, MiddleSpace and RightSpace layout spacers. They are opaque white with no sprite, which is invisible in the stock screen-space canvas but renders as large white panels about 3 meters ahead once the canvas is moved to world space for VR.");
 
         CockpitSeatForwardOffset = config.Bind(
             "Camera",

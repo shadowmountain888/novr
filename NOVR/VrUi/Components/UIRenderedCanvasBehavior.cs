@@ -70,6 +70,7 @@ public class UIRenderedCanvasBehavior : MonoBehaviour
             return;
         }
 
+
         var currentLayer = root.gameObject.layer;
         if (currentLayer != vrUiLayer && currentLayer != vrUiCaptureLayer)
         {
