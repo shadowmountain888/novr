@@ -19,6 +19,7 @@ public class ModConfiguration
     public readonly ConfigEntry<float> PitchLadderScale;
     public readonly ConfigEntry<float> HudScale;
     public readonly ConfigEntry<float> CompassVerticalOffset;
+    public readonly ConfigEntry<int> SinglePlayerMinimumRank;
     public readonly ConfigEntry<float> CockpitSeatForwardOffset;
     public readonly ConfigEntry<float> ExternalViewDistance;
     public readonly ConfigEntry<float> VrUiLayerRefreshInterval;
@@ -65,6 +66,14 @@ public class ModConfiguration
             new ConfigDescription(
                 "Overall size multiplier for the in-flight HUD (HUDCanvas and everything under it). 1.0 is the stock size, 0.5 is half size. Applies live.",
                 new AcceptableValueRange<float>(0.25f, 2.0f)));
+
+        SinglePlayerMinimumRank = config.Bind(
+            "Gameplay",
+            "Single Player Minimum Rank",
+            0,
+            new ConfigDescription(
+                "Raises your rank in stock single player missions so rank-gated aircraft are selectable, for missions whose starting rank is baked into the game assets. 0 disables it. Only applies while you are the host - on another player's server rank is server-authoritative and this does nothing.",
+                new AcceptableValueRange<int>(0, 50)));
 
         CockpitSeatForwardOffset = config.Bind(
             "Camera",
