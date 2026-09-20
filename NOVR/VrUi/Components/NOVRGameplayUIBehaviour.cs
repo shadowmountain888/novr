@@ -20,11 +20,87 @@ public class NOVRGameplayUIBehaviour : UIRenderedCanvasBehavior
 
     private void Update()
     {
-        transform.localScale = new Vector3(0.003f, 0.003f, 0.003f);
-        transform.position = new Vector3(0f, 0f, 3f);
+        PlaceCanvas();
+        PlaceDialogueBox();
         HideChatLayoutSpacers();
         HideLeakedVirtualMfd();
     }
+
+    private const float CanvasDistance = 3f;
+    private const float CanvasScale = 0.003f;
+
+    private bool _chatChecked;
+    private bool _isChatCanvas;
+
+    private bool _dialogueSearched;
+    private Transform _dialogueBox;
+    private Vector3 _dialogueBaseLocalPosition;
+    private Vector3 _dialogueBaseLocalScale;
+
+    // Every canvas this behaviour drives sits 3 m ahead at 0.003 scale. The one carrying MessageUI
+    // (chat, mission messages, kill feed) can additionally be moved by angle and resized from the
+    // tuning menu; it is turned to keep facing the pilot so it does not shear when moved off-centre.
+    private void PlaceCanvas()
+    {
+        if (!_chatChecked)
+        {
+            _chatChecked = true;
+            _isChatCanvas = TryGetComponent<global::MessageUI>(out _);
+        }
+
+        var config = ModConfiguration.Instance;
+        if (!_isChatCanvas || config == null)
+        {
+            transform.localScale = new Vector3(CanvasScale, CanvasScale, CanvasScale);
+            transform.position = new Vector3(0f, 0f, CanvasDistance);
+            return;
+        }
+
+        var yaw = config.ChatHorizontalAngle.Value;
+        var pitch = config.ChatVerticalAngle.Value;
+        var scale = CanvasScale * config.ChatSize.Value;
+        transform.localScale = new Vector3(scale, scale, scale);
+        transform.position = new Vector3(
+            Mathf.Tan(yaw * Mathf.Deg2Rad) * CanvasDistance,
+            Mathf.Tan(pitch * Mathf.Deg2Rad) * CanvasDistance,
+            CanvasDistance);
+        transform.rotation = Quaternion.Euler(-pitch, yaw, 0f);
+    }
+
+    // The mission dialogue box is a child of GameplayUICanvas, which also carries the MFD and other
+    // widgets, so it is offset inside the canvas instead of moving the whole canvas.
+    private void PlaceDialogueBox()
+    {
+        if (!_dialogueSearched)
+        {
+            _dialogueSearched = true;
+            if (TryGetComponent<global::GameplayUI>(out var gameplayUi) && gameplayUi.DialogueBox != null)
+            {
+                _dialogueBox = gameplayUi.DialogueBox.transform;
+                _dialogueBaseLocalPosition = _dialogueBox.localPosition;
+                _dialogueBaseLocalScale = _dialogueBox.localScale;
+            }
+        }
+
+        var config = ModConfiguration.Instance;
+        if (_dialogueBox == null || config == null) return;
+
+        // Canvas pixels per metre at the canvas distance: tan(angle) * 3 m / 0.003.
+        var pixelsAtDistance = CanvasDistance / CanvasScale;
+        var offset = new Vector3(
+            Mathf.Tan(config.DialogueHorizontalAngle.Value * Mathf.Deg2Rad) * pixelsAtDistance,
+            Mathf.Tan(config.DialogueVerticalAngle.Value * Mathf.Deg2Rad) * pixelsAtDistance,
+            0f);
+        var size = config.DialogueSize.Value;
+        var atDefaults = offset == Vector3.zero && Mathf.Approximately(size, 1f);
+        if (atDefaults && !_dialogueMoved) return;
+
+        _dialogueMoved = !atDefaults;
+        _dialogueBox.localPosition = _dialogueBaseLocalPosition + offset;
+        _dialogueBox.localScale = _dialogueBaseLocalScale * size;
+    }
+
+    private bool _dialogueMoved;
 
     // ChatCanvas/TopPanel lays its contents out with three HorizontalLayoutGroup spacers -
     // LeftSpace, MiddleSpace and RightSpace. Each carries an opaque white Image with no sprite,

@@ -38,6 +38,12 @@ public class ModConfiguration
     public readonly ConfigEntry<bool> SidePanelBackgrounds;
     public readonly ConfigEntry<bool> FunnelGunSightVrAdapter;
     public readonly ConfigEntry<string> TuningMenuKey;
+    public readonly ConfigEntry<float> ChatHorizontalAngle;
+    public readonly ConfigEntry<float> ChatVerticalAngle;
+    public readonly ConfigEntry<float> ChatSize;
+    public readonly ConfigEntry<float> DialogueHorizontalAngle;
+    public readonly ConfigEntry<float> DialogueVerticalAngle;
+    public readonly ConfigEntry<float> DialogueSize;
     public readonly ConfigEntry<float> TuningMenuSize;
     public readonly ConfigEntry<float> TuningMenuSideAngle;
     public readonly ConfigEntry<float> TuningMenuHeightAngle;
@@ -219,6 +225,13 @@ public class ModConfiguration
             "F8",
             "Key that opens and closes the in-cockpit HUD and seat tuning menu. Any UnityEngine.InputSystem.Key name (F8, F10, Backquote, Numpad0 ...). Read when you enter a cockpit.");
 
+        ChatHorizontalAngle = BindPlacement(config, "Chat Horizontal Angle", 0.0f, -60.0f, 60.0f, "Degrees right (+) or left (-) to move the chat, message and kill feed canvas. Applies live.");
+        ChatVerticalAngle = BindPlacement(config, "Chat Vertical Angle", 0.0f, -45.0f, 45.0f, "Degrees up (+) or down (-) to move the chat, message and kill feed canvas. Applies live.");
+        ChatSize = BindPlacement(config, "Chat Size", 1.0f, 0.25f, 2.0f, "Size multiplier for the chat, message and kill feed canvas. Applies live.");
+        DialogueHorizontalAngle = BindPlacement(config, "Dialogue Horizontal Angle", 0.0f, -60.0f, 60.0f, "Degrees right (+) or left (-) to move the mission dialogue box. Applies live.");
+        DialogueVerticalAngle = BindPlacement(config, "Dialogue Vertical Angle", 0.0f, -45.0f, 45.0f, "Degrees up (+) or down (-) to move the mission dialogue box. Applies live.");
+        DialogueSize = BindPlacement(config, "Dialogue Size", 1.0f, 0.25f, 2.0f, "Size multiplier for the mission dialogue box. Applies live.");
+
         TuningMenuSize = config.Bind(
             "Tuning Menu",
             "Size",
@@ -298,5 +311,10 @@ public class ModConfiguration
             new ConfigDescription(
                 "Size multiplier for the pitch ladder slices. The stock value is 0.8; lower it to shrink the ladder. Requires re-entering a cockpit to take effect.",
                 new AcceptableValueRange<float>(0.1f, 2.0f)));
+    }
+
+    private static ConfigEntry<float> BindPlacement(ConfigFile config, string key, float defaultValue, float min, float max, string description)
+    {
+        return config.Bind("Chat And Dialogue", key, defaultValue, new ConfigDescription(description, new AcceptableValueRange<float>(min, max)));
     }
 }

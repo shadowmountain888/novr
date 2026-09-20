@@ -254,6 +254,13 @@ public class CockpitHudTuningMenu : MonoBehaviour
             panel => AddSlider(panel, "MAP UP / DOWN (deg)", config.MapPanelVerticalAngle),
             panel => AddSlider(panel, "MAP SIZE", config.MapPanelSize),
             panel => AddToggle(panel, "PANEL BACKGROUNDS", config.SidePanelBackgrounds),
+            panel => AddHeader(panel, "CHAT  +  DIALOGUE"),
+            panel => AddSlider(panel, "CHAT LEFT / RIGHT (deg)", config.ChatHorizontalAngle),
+            panel => AddSlider(panel, "CHAT UP / DOWN (deg)", config.ChatVerticalAngle),
+            panel => AddSlider(panel, "CHAT SIZE", config.ChatSize),
+            panel => AddSlider(panel, "DIALOGUE LEFT / RIGHT (deg)", config.DialogueHorizontalAngle),
+            panel => AddSlider(panel, "DIALOGUE UP / DOWN (deg)", config.DialogueVerticalAngle),
+            panel => AddSlider(panel, "DIALOGUE SIZE", config.DialogueSize),
             panel => AddHeader(panel, "SEAT"),
             panel => AddSlider(panel, "SEAT FORWARD / BACK (m)", config.CockpitSeatForwardOffset),
             panel => AddSlider(panel, "SEAT UP / DOWN (m)", config.CockpitSeatHeightOffset),
@@ -264,7 +271,7 @@ public class CockpitHudTuningMenu : MonoBehaviour
             panel => AddSlider(panel, "MENU UP / DOWN (deg)", config.TuningMenuHeightAngle, 1f, ApplyPlacement),
         };
 
-        var headerCount = 4;
+        var headerCount = 5;
         var contentHeight = headerCount * HeaderHeight + (rows.Count - headerCount) * RowHeight;
         var panelHeight = contentHeight + 150f;
         rootRect.sizeDelta = new Vector2(PanelWidth, panelHeight);
