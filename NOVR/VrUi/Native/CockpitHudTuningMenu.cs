@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using BepInEx.Configuration;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
@@ -51,6 +52,16 @@ public class CockpitHudTuningMenu : MonoBehaviour
     private bool _previousCursorVisible;
     private float _cursorY;
 
+    // Keyboard nudging: click a slider row to select it, then Up/Down (or Right/Left) adjust it.
+    private const float KeyRepeatDelay = 0.35f;
+    private const float KeyRepeatInterval = 0.05f;
+    private static readonly Color SelectedRowColor = new(0.13f, 0.30f, 0.20f, 0.95f);
+    private Slider _selectedSlider;
+    private Image _selectedRowImage;
+    private float _selectedNudge;
+    private float _nextKeyRepeatTime;
+    private int _heldDirection;
+
     private void Start()
     {
         var keyName = ModConfiguration.Instance?.TuningMenuKey.Value ?? "F8";
@@ -77,6 +88,61 @@ public class CockpitHudTuningMenu : MonoBehaviour
             if (_open) Close();
             else Open();
         }
+
+        if (_open && keyboard != null) HandleArrowKeys(keyboard);
+    }
+
+    // A tap moves one nudge; holding repeats after a short delay. Writing slider.value goes through
+    // the same onValueChanged path as the mouse, so snapping, live apply and the readout all follow.
+    private void HandleArrowKeys(Keyboard keyboard)
+    {
+        if (_selectedSlider == null) return;
+
+        var direction = 0;
+        if (keyboard.upArrowKey.isPressed || keyboard.rightArrowKey.isPressed) direction += 1;
+        if (keyboard.downArrowKey.isPressed || keyboard.leftArrowKey.isPressed) direction -= 1;
+
+        if (direction == 0)
+        {
+            _heldDirection = 0;
+            return;
+        }
+
+        var now = Time.unscaledTime;
+        if (direction != _heldDirection)
+        {
+            _heldDirection = direction;
+            _nextKeyRepeatTime = now + KeyRepeatDelay;
+        }
+        else if (now < _nextKeyRepeatTime)
+        {
+            return;
+        }
+        else
+        {
+            _nextKeyRepeatTime = now + KeyRepeatInterval;
+        }
+
+        var nudge = keyboard.shiftKey.isPressed ? _selectedNudge * 10f : _selectedNudge;
+        _selectedSlider.value = Mathf.Clamp(_selectedSlider.value + direction * nudge, _selectedSlider.minValue, _selectedSlider.maxValue);
+    }
+
+    private void SelectSlider(Slider slider, Image rowImage, float nudge)
+    {
+        if (_selectedRowImage != null) _selectedRowImage.color = RowColor;
+        _selectedSlider = slider;
+        _selectedRowImage = rowImage;
+        _selectedNudge = nudge;
+        _heldDirection = 0;
+        if (_selectedRowImage != null) _selectedRowImage.color = SelectedRowColor;
+    }
+
+    private static void OnPointerDown(GameObject target, Action action)
+    {
+        var trigger = target.GetComponent<EventTrigger>() ?? target.AddComponent<EventTrigger>();
+        var entry = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
+        entry.callback.AddListener(_ => action());
+        trigger.triggers.Add(entry);
     }
 
     // After the game's own Update/LateUpdate work, which is where it re-locks the cursor.
@@ -214,7 +280,7 @@ public class CockpitHudTuningMenu : MonoBehaviour
         var footerY = -panelHeight * 0.5f + 40f;
         CreateButton(panelRect, "RESET ALL", new Vector2(-250f, footerY), new Vector2(200f, 42f), ButtonColor, ResetAll);
         CreateButton(panelRect, $"CLOSE ({_toggleKey})", new Vector2(250f, footerY), new Vector2(200f, 42f), CloseColor, Close);
-        CreateText("Hint", panelRect, "* applies when you next enter a cockpit.  Everything else is live.  Saved on close.", new Vector2(0f, footerY + 40f), new Vector2(PanelWidth - 60f, 24f), 13, TextAnchor.MiddleCenter, HeaderTextColor);
+        CreateText("Hint", panelRect, "Click a row, then Up/Down to nudge it (Shift = x10).   * needs cockpit re-entry.   Saved on close.", new Vector2(0f, footerY + 40f), new Vector2(PanelWidth - 60f, 24f), 13, TextAnchor.MiddleCenter, HeaderTextColor);
 
         LayerHelper.SetLayerRecursive(_root.transform, LayerHelper.GetVrUiLayer());
         _root.SetActive(false);
@@ -260,6 +326,12 @@ public class CockpitHudTuningMenu : MonoBehaviour
         var slider = CreateSlider(row, new Vector2(60f, 0f), new Vector2(400f, 26f), min, max);
 
         var format = step >= 1f || max - min > 50f ? "0" : "0.00";
+
+        // One nudge = the snapping step where there is one, otherwise 1/200th of the range.
+        var nudge = step > 0f ? step : (max - min) / 200f;
+        var rowImage = row.GetComponent<Image>();
+        OnPointerDown(row.gameObject, () => SelectSlider(slider, rowImage, nudge));
+        OnPointerDown(slider.gameObject, () => SelectSlider(slider, rowImage, nudge));
         var refreshing = false;
         void Refresh()
         {
