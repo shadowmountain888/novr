@@ -7,7 +7,7 @@ public class NOVRGameplayUIBehaviour : UIRenderedCanvasBehavior
 {
     private static readonly string[] ChatSpacerNames = { "LeftSpace", "MiddleSpace", "RightSpace" };
 
-    private bool _handledChatSpacers;
+    private Image[] _chatSpacerImages;
 
     private void Update()
     {
@@ -24,21 +24,36 @@ public class NOVRGameplayUIBehaviour : UIRenderedCanvasBehavior
     // peripheral vision. Only the Image is disabled; the layout itself is untouched.
     private void HideChatLayoutSpacers()
     {
-        if (_handledChatSpacers) return;
         if (ModConfiguration.Instance?.HideChatLayoutSpacers.Value != true) return;
 
-        var topPanel = FindChildStartingWith(transform, "TopPanel");
-        if (topPanel == null) return;
-
-        foreach (var spacerName in ChatSpacerNames)
+        if (_chatSpacerImages == null)
         {
-            var spacer = FindChildStartingWith(topPanel, spacerName);
-            if (spacer == null) continue;
-            if (!spacer.TryGetComponent<Image>(out var spacerImage)) continue;
+            var topPanel = FindChildStartingWith(transform, "TopPanel");
+            if (topPanel == null) return;
 
-            spacerImage.enabled = false;
+            var found = new System.Collections.Generic.List<Image>(ChatSpacerNames.Length);
+            foreach (var spacerName in ChatSpacerNames)
+            {
+                var spacer = FindChildStartingWith(topPanel, spacerName);
+                if (spacer == null) continue;
+                if (!spacer.TryGetComponent<Image>(out var spacerImage)) continue;
+
+                found.Add(spacerImage);
+            }
+
+            if (found.Count == 0) return;
+            _chatSpacerImages = found.ToArray();
         }
 
-        _handledChatSpacers = true;
+        // Re-asserted every frame rather than latched once: MessageUI rebuilds the chat bar as
+        // messages arrive and re-enables these Images, which brought the white panels back.
+        for (var index = 0; index < _chatSpacerImages.Length; index++)
+        {
+            var spacerImage = _chatSpacerImages[index];
+            if (spacerImage != null && spacerImage.enabled)
+            {
+                spacerImage.enabled = false;
+            }
+        }
     }
 }
