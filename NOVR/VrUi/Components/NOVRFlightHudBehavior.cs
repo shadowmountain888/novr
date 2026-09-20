@@ -36,6 +36,7 @@ public class NOVRFlightHudBehavior : UIRenderedCanvasBehavior
         if (_helmetSidePanels && hmdcenter != null)
         {
             _hmdCenter = hmdcenter;
+            _hudCenter = hudcenter;
             _weaponPanel = FindChildStartingWith(transform, "TopRightPanel");
             _mapPanel = FindChildStartingWith(transform, "LowerLeftPanel");
             if (_weaponPanel != null) _weaponPanel.SetParent(hmdcenter, false);
@@ -83,6 +84,7 @@ public class NOVRFlightHudBehavior : UIRenderedCanvasBehavior
 
     private bool _helmetSidePanels;
     private Transform _hmdCenter;
+    private Transform _hudCenter;
     private Transform _weaponPanel;
     private Transform _mapPanel;
 
@@ -98,15 +100,20 @@ public class NOVRFlightHudBehavior : UIRenderedCanvasBehavior
         var config = ModConfiguration.Instance;
         if (config == null) return;
 
-        var parentScale = _hmdCenter.lossyScale.x;
+        // Follow Head on: HMDCenter, which NOVRHMDBehavior slaves to the head. Off: HUDCenter, which
+        // NoVrHudBehavior pins straight ahead of the aircraft. Both sit 1000 units out, so the same
+        // angle-based placement works for either; the panels are simply re-parented when it changes.
+        var parent = config.SidePanelsFollowHead.Value || _hudCenter == null ? _hmdCenter : _hudCenter;
+        var parentScale = parent.lossyScale.x;
         if (parentScale <= Mathf.Epsilon) return;
 
-        var horizontal = config.SidePanelHorizontalAngle.Value;
-        var size = config.SidePanelSize.Value;
         var showBackground = config.SidePanelBackgrounds.Value;
 
-        PlaceHelmetPanel(_weaponPanel, horizontal, config.WeaponPanelVerticalAngle.Value, size, parentScale, showBackground);
-        PlaceHelmetPanel(_mapPanel, -horizontal, config.MapPanelVerticalAngle.Value, size, parentScale, showBackground);
+        if (_weaponPanel != null && _weaponPanel.parent != parent) _weaponPanel.SetParent(parent, false);
+        if (_mapPanel != null && _mapPanel.parent != parent) _mapPanel.SetParent(parent, false);
+
+        PlaceHelmetPanel(_weaponPanel, config.WeaponPanelHorizontalAngle.Value, config.WeaponPanelVerticalAngle.Value, config.WeaponPanelSize.Value, parentScale, showBackground);
+        PlaceHelmetPanel(_mapPanel, config.MapPanelHorizontalAngle.Value, config.MapPanelVerticalAngle.Value, config.MapPanelSize.Value, parentScale, showBackground);
     }
 
     private static void PlaceHelmetPanel(Transform panel, float yawDegrees, float pitchDegrees, float size, float parentScale, bool showBackground)

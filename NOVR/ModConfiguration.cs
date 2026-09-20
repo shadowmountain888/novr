@@ -28,10 +28,13 @@ public class ModConfiguration
     public readonly ConfigEntry<bool> DisableUnityXrCameraAutoTracking;
     public readonly ConfigEntry<bool> ProjectObjectiveOverlaysInVr;
     public readonly ConfigEntry<bool> HelmetMountedSidePanels;
-    public readonly ConfigEntry<float> SidePanelHorizontalAngle;
+    public readonly ConfigEntry<bool> SidePanelsFollowHead;
+    public readonly ConfigEntry<float> WeaponPanelHorizontalAngle;
+    public readonly ConfigEntry<float> MapPanelHorizontalAngle;
     public readonly ConfigEntry<float> WeaponPanelVerticalAngle;
     public readonly ConfigEntry<float> MapPanelVerticalAngle;
-    public readonly ConfigEntry<float> SidePanelSize;
+    public readonly ConfigEntry<float> WeaponPanelSize;
+    public readonly ConfigEntry<float> MapPanelSize;
     public readonly ConfigEntry<bool> SidePanelBackgrounds;
     public readonly ConfigEntry<bool> FunnelGunSightVrAdapter;
     public readonly ConfigEntry<string> TuningMenuKey;
@@ -144,13 +147,27 @@ public class ModConfiguration
             true,
             "Keeps the weapon panel and the minimap on the helmet display (head-locked) with their stock background and layout, instead of pinning them among the fixed forward HUD symbology with the background removed. Read when you enter a cockpit.");
 
-        SidePanelHorizontalAngle = config.Bind(
+        SidePanelsFollowHead = config.Bind(
             "HUD Side Panels",
-            "Horizontal Angle",
+            "Follow Head",
+            true,
+            "On: the weapon panel and minimap are attached to the helmet and move with your gaze. Off: they are pinned to the fixed forward HUD, at the same angles measured from the aircraft's nose instead of from where you are looking. Applies live.");
+
+        WeaponPanelHorizontalAngle = config.Bind(
+            "HUD Side Panels",
+            "Weapon Panel Horizontal Angle",
             26.0f,
             new ConfigDescription(
-                "Degrees left/right of the view centre. The weapon panel goes right, the minimap left. Larger pushes them further toward the edges of your field of view. Applies live.",
-                new AcceptableValueRange<float>(5.0f, 50.0f)));
+                "Degrees right (+) or left (-) of centre for the weapon panel. Applies live.",
+                new AcceptableValueRange<float>(-60.0f, 60.0f)));
+
+        MapPanelHorizontalAngle = config.Bind(
+            "HUD Side Panels",
+            "Map Panel Horizontal Angle",
+            -26.0f,
+            new ConfigDescription(
+                "Degrees right (+) or left (-) of centre for the minimap. Applies live.",
+                new AcceptableValueRange<float>(-60.0f, 60.0f)));
 
         WeaponPanelVerticalAngle = config.Bind(
             "HUD Side Panels",
@@ -168,12 +185,20 @@ public class ModConfiguration
                 "Degrees above (+) or below (-) the view centre for the minimap. Applies live.",
                 new AcceptableValueRange<float>(-40.0f, 40.0f)));
 
-        SidePanelSize = config.Bind(
+        WeaponPanelSize = config.Bind(
             "HUD Side Panels",
-            "Size",
+            "Weapon Panel Size",
             1.0f,
             new ConfigDescription(
-                "Size multiplier for both panels. Independent of HUD Scale, so shrinking the HUD does not make these unreadable. Applies live.",
+                "Size multiplier for the weapon panel. Independent of HUD Scale. Applies live.",
+                new AcceptableValueRange<float>(0.25f, 3.0f)));
+
+        MapPanelSize = config.Bind(
+            "HUD Side Panels",
+            "Map Panel Size",
+            1.0f,
+            new ConfigDescription(
+                "Size multiplier for the minimap. Independent of HUD Scale. Applies live.",
                 new AcceptableValueRange<float>(0.25f, 3.0f)));
 
         SidePanelBackgrounds = config.Bind(
