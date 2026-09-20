@@ -26,6 +26,7 @@ public class ModConfiguration
     public readonly ConfigEntry<bool> HideVirtualMfdWhenMapClosed;
     public readonly ConfigEntry<bool> HideParkedMfdScreens;
     public readonly ConfigEntry<bool> DisableUnityXrCameraAutoTracking;
+    public readonly ConfigEntry<bool> ProjectObjectiveOverlaysInVr;
     public readonly ConfigEntry<float> CockpitSeatForwardOffset;
     public readonly ConfigEntry<float> ExternalViewDistance;
     public readonly ConfigEntry<float> VrUiLayerRefreshInterval;
@@ -118,6 +119,12 @@ public class ModConfiguration
             "Disable Unity XR Camera Auto Tracking",
             true,
             "Stops Unity's XR integration from also applying the headset pose to NOVR's cameras. NOVR poses them itself; with both active, positional tracking is applied twice and leaning moves the view about 2x. Existed in 0.2.0, dropped in 0.4.x, restored here.");
+
+        ProjectObjectiveOverlaysInVr = config.Bind(
+            "HUD",
+            "Project Objective Overlays In VR",
+            true,
+            "Re-projects the objective and waypoint HUD markers (arrow, dot, size ring and label) onto the VR HUD sphere. The stock code writes screen-pixel coordinates straight into world-space transforms, which on NOVR's world-space HUDCanvas makes those markers appear warped and hard to see. Also replaces the stock label anti-overlap pass with one that works on the HUD sphere. Applies live.");
 
         CockpitSeatForwardOffset = config.Bind(
             "Camera",
