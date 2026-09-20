@@ -15,6 +15,10 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
     private const float MaxDistance = 6.0f;
     private const float MinHeightOffset = -0.25f;
     private const float MaxHeightOffset = 1.0f;
+    private const float DefaultSeatForwardOffset = 0.0f;
+    private const float MinSeatForwardOffset = -0.5f;
+    private const float MaxSeatForwardOffset = 0.5f;
+    private const float SeatForwardOffsetStep = 0.02f;
 
     private static readonly Color BackgroundColor = new(0.025f, 0.035f, 0.045f, 0.93f);
     private static readonly Color PanelColor = new(0.05f, 0.06f, 0.065f, 0.94f);
@@ -31,6 +35,7 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
     private Text? _scaleValueText;
     private Text? _distanceValueText;
     private Text? _heightValueText;
+    private Text? _seatForwardValueText;
     private Text? _statusText;
     private Action? _close;
     private Action? _recenter;
@@ -61,22 +66,22 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
         CreateImage("Background", _container, BackgroundColor, Vector2.zero, _container.sizeDelta);
         CreateText("Header", _container, "VR UI SETTINGS", new Vector2(0f, NativeUiLayout.HeaderY), NativeUiLayout.HeaderSize, 22, TextAnchor.MiddleCenter, Color.white);
 
-        var panel = CreatePanel("VR UI Settings Panel", _container, PanelColor, Vector2.zero, new Vector2(980f, 720f));
-        CreateText("Panel Header", panel, "MENU MODE", new Vector2(0f, 310f), new Vector2(860f, 34f), 19, TextAnchor.MiddleCenter, Color.white);
+        var panel = CreatePanel("VR UI Settings Panel", _container, PanelColor, Vector2.zero, new Vector2(980f, 880f));
+        CreateText("Panel Header", panel, "MENU MODE", new Vector2(0f, 390f), new Vector2(860f, 34f), 19, TextAnchor.MiddleCenter, Color.white);
 
         CreateToggleRow(
             panel,
             "NATIVE VR UI",
             "Use NOVR's native menu instead of the stock rendered UI.",
-            new Vector2(0f, 230f));
+            new Vector2(0f, 310f));
 
-        CreateText("Placement Header", panel, "PLACEMENT", new Vector2(0f, 145f), new Vector2(860f, 30f), 17, TextAnchor.MiddleCenter, new Color(0.84f, 0.90f, 0.92f, 1f));
+        CreateText("Placement Header", panel, "PLACEMENT", new Vector2(0f, 225f), new Vector2(860f, 30f), 17, TextAnchor.MiddleCenter, new Color(0.84f, 0.90f, 0.92f, 1f));
 
         CreateSettingRow(
             panel,
             "SCALE",
             "Overall native menu size.",
-            new Vector2(0f, 65f),
+            new Vector2(0f, 145f),
             () => ChangeScale(-0.05f),
             () => ChangeScale(0.05f),
             out _scaleValueText);
@@ -85,7 +90,7 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
             panel,
             "DISTANCE",
             "Meters from your headset when opened or recentered.",
-            new Vector2(0f, -45f),
+            new Vector2(0f, 35f),
             () => ChangeDistance(-0.1f),
             () => ChangeDistance(0.1f),
             out _distanceValueText);
@@ -94,14 +99,25 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
             panel,
             "HEIGHT OFFSET",
             "Vertical offset in meters relative to your headset.",
-            new Vector2(0f, -155f),
+            new Vector2(0f, -75f),
             () => ChangeHeightOffset(-0.05f),
             () => ChangeHeightOffset(0.05f),
             out _heightValueText);
 
-        CreateMenuButton("RESET DEFAULTS", panel, new Vector2(-160f, -290f), new Vector2(220f, 42f), ButtonColor, ResetDefaults, 13);
-        CreateMenuButton("RECENTER", panel, new Vector2(160f, -290f), new Vector2(180f, 42f), ActionButtonColor, Recenter, 14);
-        _statusText = CreateText("Status", panel, "", new Vector2(0f, -340f), new Vector2(860f, 34f), 13, TextAnchor.MiddleCenter, new Color(0.84f, 0.90f, 0.92f, 1f));
+        CreateText("Cockpit Header", panel, "COCKPIT", new Vector2(0f, -165f), new Vector2(860f, 30f), 17, TextAnchor.MiddleCenter, new Color(0.84f, 0.90f, 0.92f, 1f));
+
+        CreateSettingRow(
+            panel,
+            "SEAT FORWARD",
+            "How far forward or back you sit. Positive moves toward the panel.",
+            new Vector2(0f, -245f),
+            () => ChangeSeatForwardOffset(-SeatForwardOffsetStep),
+            () => ChangeSeatForwardOffset(SeatForwardOffsetStep),
+            out _seatForwardValueText);
+
+        CreateMenuButton("RESET DEFAULTS", panel, new Vector2(-160f, -350f), new Vector2(220f, 42f), ButtonColor, ResetDefaults, 13);
+        CreateMenuButton("RECENTER", panel, new Vector2(160f, -350f), new Vector2(180f, 42f), ActionButtonColor, Recenter, 14);
+        _statusText = CreateText("Status", panel, "", new Vector2(0f, -400f), new Vector2(860f, 34f), 13, TextAnchor.MiddleCenter, new Color(0.84f, 0.90f, 0.92f, 1f));
 
         CreateMenuButton("BACK", _container, new Vector2(NativeUiLayout.FooterLeftX, NativeUiLayout.FooterY), NativeUiLayout.FooterButtonSize, BackButtonColor, Close, 15);
         NativePanelTransition.SetVisible(_container, false, instant: true);
@@ -157,12 +173,23 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
         SaveAndRefresh("Height offset updated.");
     }
 
+    private void ChangeSeatForwardOffset(float delta)
+    {
+        var config = ModConfiguration.Instance;
+        var value = RoundToStep(
+            Mathf.Clamp(config.CockpitSeatForwardOffset.Value + delta, MinSeatForwardOffset, MaxSeatForwardOffset),
+            SeatForwardOffsetStep);
+        config.CockpitSeatForwardOffset.Value = value;
+        SaveAndRefresh("Seat position updated.");
+    }
+
     private void ResetDefaults()
     {
         var config = ModConfiguration.Instance;
         config.NativeMenuScale.Value = DefaultScale;
         config.NativeMenuDistance.Value = DefaultDistance;
         config.NativeMenuHeightOffset.Value = DefaultHeightOffset;
+        config.CockpitSeatForwardOffset.Value = DefaultSeatForwardOffset;
         SaveAndRefresh("VR UI settings reset.");
     }
 
@@ -203,6 +230,7 @@ public sealed class NativeVrUiSettingsPanel : MonoBehaviour
         if (_scaleValueText != null) _scaleValueText.text = $"{config.NativeMenuScale.Value:0.00}x";
         if (_distanceValueText != null) _distanceValueText.text = $"{config.NativeMenuDistance.Value:0.0} m";
         if (_heightValueText != null) _heightValueText.text = $"{config.NativeMenuHeightOffset.Value:+0.00;-0.00;0.00} m";
+        if (_seatForwardValueText != null) _seatForwardValueText.text = $"{config.CockpitSeatForwardOffset.Value:+0.00;-0.00;0.00} m";
     }
 
     private void RefreshNativeUiToggle(bool enabled)

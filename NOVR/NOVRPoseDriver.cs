@@ -43,10 +43,22 @@ public class NOVRPoseDriver: NOVRBehaviour
         UpdateTransform();
     }
 
+    // Set only on the in-world VR cameras. The menu UI also uses a pose driver and must not move
+    // with the cockpit seat adjustment.
+    public bool ApplySeatOffset;
+
     private void UpdateTransform()
     {
         transform.localRotation = NOVRHeadsetData.Rotation;
-        transform.localPosition = NOVRHeadsetData.Translation;
+
+        var localPosition = NOVRHeadsetData.Translation;
+        if (ApplySeatOffset)
+        {
+            var seatForwardOffset = ModConfiguration.Instance?.CockpitSeatForwardOffset.Value ?? 0f;
+            localPosition += new Vector3(0f, 0f, seatForwardOffset);
+        }
+
+        transform.localPosition = localPosition;
     }
 
    

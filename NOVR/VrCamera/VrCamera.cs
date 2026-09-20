@@ -26,7 +26,11 @@ public class VrCamera : StereoCamera
 
     private void Start()
     {
-        gameObject.AddComponent<NOVRPoseDriver>();
+        var poseDriver = gameObject.AddComponent<NOVRPoseDriver>();
+
+        // Only the in-world VR cameras honour the cockpit seat offset; NOUIManager's pose driver
+        // stays put so the menu does not slide around with the seat adjustment.
+        poseDriver.ApplySeatOffset = true;
     }
     
     private void Update()

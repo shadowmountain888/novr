@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
@@ -20,6 +21,10 @@ public class PitchCompassBehavior : MonoBehaviour
     private RectTransform _sliceRoot;
     private float _fullTextureDisplayHeight;
     private bool _hasBuiltSlices;
+
+    // Each built slice paired with the pitch angle (degrees from the horizon) it represents,
+    // so Update can show only the slices near the aircraft's current pitch.
+    private readonly List<KeyValuePair<Transform, float>> _slicePitches = new();
     
     
     private FlightHud _flightHud;
@@ -52,8 +57,36 @@ public class PitchCompassBehavior : MonoBehaviour
         var targetForward = Vector3.Cross(targetUp, targetRight).normalized;
         
         _sliceRoot.transform.rotation = Quaternion.LookRotation(targetForward, targetUp);
-        
+
         _sourcePitchCompass.enabled = false;
+
+        UpdateSliceVisibility();
+    }
+
+    // Real HUDs only show the few degrees of pitch ladder visible through the combiner glass.
+    // The full sphere is still built, but only the band around the current pitch is enabled.
+    private void UpdateSliceVisibility()
+    {
+        var visibleRange = ModConfiguration.Instance?.PitchLadderVisibleRange.Value ?? 30f;
+        var showAll = visibleRange >= 360f;
+        var halfRange = visibleRange * 0.5f;
+
+        var cockpitForward = _cockpitTransform.forward;
+        var currentPitch = Mathf.Asin(Mathf.Clamp(cockpitForward.y, -1f, 1f)) * Mathf.Rad2Deg;
+
+        for (var i = 0; i < _slicePitches.Count; i++)
+        {
+            var sliceTransform = _slicePitches[i].Key;
+            if (sliceTransform == null) continue;
+
+            var visible = showAll ||
+                          Mathf.Abs(Mathf.DeltaAngle(_slicePitches[i].Value, currentPitch)) <= halfRange;
+
+            if (sliceTransform.gameObject.activeSelf != visible)
+            {
+                sliceTransform.gameObject.SetActive(visible);
+            }
+        }
     }
     
 
@@ -94,6 +127,7 @@ public class PitchCompassBehavior : MonoBehaviour
         var sourceRectTransform = _sourcePitchCompass.rectTransform;
         _fullTextureDisplayHeight = sourceRectTransform.rect.height / _sourcePitchCompass.uvRect.height;
         _sliceRoot = CreateSliceRoot(sourceRectTransform);
+        _slicePitches.Clear();
 
         for (var sliceIndex = 0; sliceIndex < FullPitchStepCount; sliceIndex++)
         {
@@ -114,8 +148,15 @@ public class PitchCompassBehavior : MonoBehaviour
             slice.transform.SetParent(_sliceRoot, true);
             opposite.transform.SetParent(_sliceRoot, true);
 
-            slice.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
-            opposite.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
+            var sliceScale = ModConfiguration.Instance?.PitchLadderScale.Value ?? 0.8f;
+            slice.transform.localScale = new Vector3(sliceScale, sliceScale, sliceScale);
+            opposite.transform.localScale = new Vector3(sliceScale, sliceScale, sliceScale);
+
+            // The `opposite` clone is the copy that lands in FRONT of the pilot displaying this
+            // pitch value (verified in-game: the +05 clone sits at +3.79 deg above boresight with
+            // the aircraft at +1.21 deg pitch). The original ends up in the rear hemisphere.
+            _slicePitches.Add(new KeyValuePair<Transform, float>(opposite.transform, pitchDegrees));
+            _slicePitches.Add(new KeyValuePair<Transform, float>(slice.transform, oppositePitchDegrees));
         }
         
         LayerHelper.SetLayerRecursive(_sliceRoot, LayerHelper.GetVrUiLayer());
