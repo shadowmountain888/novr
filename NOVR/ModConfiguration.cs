@@ -23,6 +23,8 @@ public class ModConfiguration
     public readonly ConfigEntry<float> SinglePlayerMinimumFunds;
     public readonly ConfigEntry<bool> DisableTrees;
     public readonly ConfigEntry<bool> HideChatLayoutSpacers;
+    public readonly ConfigEntry<bool> HideVirtualMfdWhenMapClosed;
+    public readonly ConfigEntry<bool> HideParkedMfdScreens;
     public readonly ConfigEntry<float> CockpitSeatForwardOffset;
     public readonly ConfigEntry<float> ExternalViewDistance;
     public readonly ConfigEntry<float> VrUiLayerRefreshInterval;
@@ -97,6 +99,18 @@ public class ModConfiguration
             "Hide Chat Layout Spacers",
             true,
             "Disables the Image on ChatCanvas/TopPanel's LeftSpace, MiddleSpace and RightSpace layout spacers. They are opaque white with no sprite, which is invisible in the stock screen-space canvas but renders as large white panels about 3 meters ahead once the canvas is moved to world space for VR.");
+
+        HideVirtualMfdWhenMapClosed = config.Bind(
+            "HUD",
+            "Hide Virtual MFD When Map Closed",
+            true,
+            "Holds a CanvasGroup alpha of 0 on GameplayUICanvas/VirtualMFD whenever the stock map is not maximized. The stock game only deactivates the MFD buttons and parks its screens 2560 px off-screen; the two 50x550 button-column backgrounds and the white 450x650 screen frames stay drawn, which is invisible on a monitor but shows up as tall thin rectangles 1.4 m and 9.2 m to each side of the pilot once the canvas is in world space for VR. Toggling the map (M) still shows the MFD.");
+
+        HideParkedMfdScreens = config.Bind(
+            "HUD",
+            "Hide Parked MFD Screens",
+            true,
+            "Disables the frame Image on each VirtualMFD screen (MAP, HUD, PALA, MIS and so on) while that screen is closed. Closed screens are parked at localPosition +/-Screen.width, off-screen in the stock game but about 9 m to each side in VR. Also applies while the map is maximized, so only the screen you have open is drawn.");
 
         CockpitSeatForwardOffset = config.Bind(
             "Camera",
