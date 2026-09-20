@@ -35,6 +35,9 @@ public class ModConfiguration
     public readonly ConfigEntry<bool> SidePanelBackgrounds;
     public readonly ConfigEntry<bool> FunnelGunSightVrAdapter;
     public readonly ConfigEntry<string> TuningMenuKey;
+    public readonly ConfigEntry<float> TuningMenuSize;
+    public readonly ConfigEntry<float> TuningMenuSideAngle;
+    public readonly ConfigEntry<float> TuningMenuHeightAngle;
     public readonly ConfigEntry<float> CockpitSeatHeightOffset;
     public readonly ConfigEntry<float> CockpitSeatForwardOffset;
     public readonly ConfigEntry<float> ExternalViewDistance;
@@ -190,6 +193,30 @@ public class ModConfiguration
             "Cockpit Tuning Menu Key",
             "F8",
             "Key that opens and closes the in-cockpit HUD and seat tuning menu. Any UnityEngine.InputSystem.Key name (F8, F10, Backquote, Numpad0 ...). Read when you enter a cockpit.");
+
+        TuningMenuSize = config.Bind(
+            "Tuning Menu",
+            "Size",
+            0.6f,
+            new ConfigDescription(
+                "Size of the in-cockpit tuning menu. Adjustable from the menu itself. Applies live.",
+                new AcceptableValueRange<float>(0.3f, 1.5f)));
+
+        TuningMenuSideAngle = config.Bind(
+            "Tuning Menu",
+            "Side Angle",
+            35.0f,
+            new ConfigDescription(
+                "Degrees right (+) or left (-) of where you were facing when the menu opened, so it does not cover the HUD being tuned. Applies live.",
+                new AcceptableValueRange<float>(-70.0f, 70.0f)));
+
+        TuningMenuHeightAngle = config.Bind(
+            "Tuning Menu",
+            "Height Angle",
+            -5.0f,
+            new ConfigDescription(
+                "Degrees above (+) or below (-) eye level for the tuning menu. Applies live.",
+                new AcceptableValueRange<float>(-40.0f, 40.0f)));
 
         CockpitSeatHeightOffset = config.Bind(
             "Camera",

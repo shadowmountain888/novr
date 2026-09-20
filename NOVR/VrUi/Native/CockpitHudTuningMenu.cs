@@ -45,6 +45,8 @@ public class CockpitHudTuningMenu : MonoBehaviour
     private Font _font;
     private bool _open;
     private Key _toggleKey = Key.F8;
+    private Vector3 _anchorPosition;
+    private Vector3 _anchorForward = Vector3.forward;
     private CursorLockMode _previousLockState;
     private bool _previousCursorVisible;
     private float _cursorY;
@@ -96,7 +98,8 @@ public class CockpitHudTuningMenu : MonoBehaviour
         if (ModConfiguration.Instance == null || APIBus.CockpitHudReference == null) return;
 
         EnsureBuilt();
-        PlaceInFrontOfPilot();
+        CaptureAnchor();
+        ApplyPlacement();
         for (var index = 0; index < _refreshers.Count; index++) _refreshers[index]();
 
         _previousLockState = Cursor.lockState;
@@ -117,18 +120,35 @@ public class CockpitHudTuningMenu : MonoBehaviour
         ModConfiguration.Instance?.Config.Save();
     }
 
-    // Same anchoring idea as NativeVrUiRoot.CaptureMenuAnchor: level with the horizon, in front of
-    // where the head is facing when the menu is opened, in the cockpit HUD camera's space.
-    private void PlaceInFrontOfPilot()
+    // Same anchoring idea as NativeVrUiRoot.CaptureMenuAnchor: level with the horizon, relative to
+    // where the head was facing when the menu was opened. Captured once per open so that dragging
+    // the menu's own placement sliders moves the panel instead of it chasing the head.
+    private void CaptureAnchor()
     {
         var reference = APIBus.CockpitHudReference.transform;
         var forward = Vector3.ProjectOnPlane(reference.forward, Vector3.up);
         if (forward.sqrMagnitude < 0.0001f) forward = Vector3.forward;
-        forward.Normalize();
+        _anchorForward = forward.normalized;
+        _anchorPosition = reference.position;
+    }
 
-        var rotation = Quaternion.LookRotation(forward, Vector3.up);
-        _root.transform.SetPositionAndRotation(reference.position + forward * PanelDistance, rotation);
-        _root.transform.localScale = Vector3.one * CanvasScale;
+    // Off to one side and small by default so it does not sit on top of the HUD being tuned. The
+    // panel is turned to face the pilot, and the VR cursor's projection follows it.
+    private void ApplyPlacement()
+    {
+        if (_root == null) return;
+
+        var config = ModConfiguration.Instance;
+        var sideAngle = config?.TuningMenuSideAngle.Value ?? 35f;
+        var heightAngle = config?.TuningMenuHeightAngle.Value ?? -5f;
+        var size = config?.TuningMenuSize.Value ?? 0.6f;
+
+        var baseRotation = Quaternion.LookRotation(_anchorForward, Vector3.up);
+        var direction = baseRotation * (Quaternion.Euler(-heightAngle, sideAngle, 0f) * Vector3.forward);
+        var rotation = Quaternion.LookRotation(direction, Vector3.up);
+
+        _root.transform.SetPositionAndRotation(_anchorPosition + direction * PanelDistance, rotation);
+        _root.transform.localScale = Vector3.one * (CanvasScale * size);
 
         VrUiCursor.I?.SetProjectionReferenceRotation(rotation);
     }
@@ -157,7 +177,7 @@ public class CockpitHudTuningMenu : MonoBehaviour
             panel => AddHeader(panel, "HUD"),
             panel => AddSlider(panel, "HUD SIZE", config.HudScale),
             panel => AddSlider(panel, "COMPASS HEIGHT", config.CompassVerticalOffset),
-            panel => AddSlider(panel, "PITCH LADDER RANGE (deg)", config.PitchLadderVisibleRange),
+            panel => AddSlider(panel, "PITCH LADDER RANGE (deg)", config.PitchLadderVisibleRange, 5f),
             panel => AddSlider(panel, "PITCH LADDER SIZE *", config.PitchLadderScale),
             panel => AddHeader(panel, "HELMET SIDE PANELS  (weapons right, map left)"),
             panel => AddSlider(panel, "DISTANCE FROM CENTRE (deg)", config.SidePanelHorizontalAngle),
@@ -169,9 +189,13 @@ public class CockpitHudTuningMenu : MonoBehaviour
             panel => AddSlider(panel, "SEAT FORWARD / BACK (m)", config.CockpitSeatForwardOffset),
             panel => AddSlider(panel, "SEAT UP / DOWN (m)", config.CockpitSeatHeightOffset),
             panel => AddSlider(panel, "EXTERNAL VIEW DISTANCE (m)", config.ExternalViewDistance),
+            panel => AddHeader(panel, "THIS MENU"),
+            panel => AddSlider(panel, "MENU SIZE", config.TuningMenuSize, 0f, ApplyPlacement),
+            panel => AddSlider(panel, "MENU LEFT / RIGHT (deg)", config.TuningMenuSideAngle, 1f, ApplyPlacement),
+            panel => AddSlider(panel, "MENU UP / DOWN (deg)", config.TuningMenuHeightAngle, 1f, ApplyPlacement),
         };
 
-        var headerCount = 3;
+        var headerCount = 4;
         var contentHeight = headerCount * HeaderHeight + (rows.Count - headerCount) * RowHeight;
         var panelHeight = contentHeight + 150f;
         rootRect.sizeDelta = new Vector2(PanelWidth, panelHeight);
@@ -216,7 +240,8 @@ public class CockpitHudTuningMenu : MonoBehaviour
         return row;
     }
 
-    private void AddSlider(RectTransform panel, string label, ConfigEntry<float> entry)
+    // step > 0 snaps the value to multiples of step (the ladder range moves in 5 degree increments).
+    private void AddSlider(RectTransform panel, string label, ConfigEntry<float> entry, float step = 0f, Action onChanged = null)
     {
         var row = AddRow(panel, label);
 
@@ -231,20 +256,33 @@ public class CockpitHudTuningMenu : MonoBehaviour
         var valueText = CreateText(label + " Value", row, "", new Vector2(330f, 0f), new Vector2(110f, 30f), 15, TextAnchor.MiddleCenter, Color.white);
         var slider = CreateSlider(row, new Vector2(60f, 0f), new Vector2(400f, 26f), min, max);
 
+        var format = step >= 1f || max - min > 50f ? "0" : "0.00";
         var refreshing = false;
         void Refresh()
         {
             refreshing = true;
             slider.value = entry.Value;
-            valueText.text = entry.Value.ToString(max - min > 50f ? "0" : "0.00");
+            valueText.text = entry.Value.ToString(format);
             refreshing = false;
         }
 
         slider.onValueChanged.AddListener(value =>
         {
             if (refreshing) return;
+            if (step > 0f)
+            {
+                var snapped = Mathf.Clamp(Mathf.Round(value / step) * step, min, max);
+                if (!Mathf.Approximately(snapped, value))
+                {
+                    refreshing = true;
+                    slider.value = snapped;
+                    refreshing = false;
+                }
+                value = snapped;
+            }
             entry.Value = value;
-            valueText.text = value.ToString(max - min > 50f ? "0" : "0.00");
+            valueText.text = value.ToString(format);
+            onChanged?.Invoke();
         });
 
         var defaultValue = (float)entry.DefaultValue;
@@ -252,6 +290,7 @@ public class CockpitHudTuningMenu : MonoBehaviour
         {
             entry.Value = defaultValue;
             Refresh();
+            onChanged?.Invoke();
         }, 11);
 
         _refreshers.Add(Refresh);
