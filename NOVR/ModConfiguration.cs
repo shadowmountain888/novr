@@ -25,6 +25,7 @@ public class ModConfiguration
     public readonly ConfigEntry<bool> HideChatLayoutSpacers;
     public readonly ConfigEntry<bool> HideVirtualMfdWhenMapClosed;
     public readonly ConfigEntry<bool> HideParkedMfdScreens;
+    public readonly ConfigEntry<bool> DisableUnityXrCameraAutoTracking;
     public readonly ConfigEntry<float> CockpitSeatForwardOffset;
     public readonly ConfigEntry<float> ExternalViewDistance;
     public readonly ConfigEntry<float> VrUiLayerRefreshInterval;
@@ -111,6 +112,12 @@ public class ModConfiguration
             "Hide Parked MFD Screens",
             true,
             "Disables the frame Image on each VirtualMFD screen (MAP, HUD, PALA, MIS and so on) while that screen is closed. Closed screens are parked at localPosition +/-Screen.width, off-screen in the stock game but about 9 m to each side in VR. Also applies while the map is maximized, so only the screen you have open is drawn.");
+
+        DisableUnityXrCameraAutoTracking = config.Bind(
+            "Camera",
+            "Disable Unity XR Camera Auto Tracking",
+            true,
+            "Stops Unity's XR integration from also applying the headset pose to NOVR's cameras. NOVR poses them itself; with both active, positional tracking is applied twice and leaning moves the view about 2x. Existed in 0.2.0, dropped in 0.4.x, restored here.");
 
         CockpitSeatForwardOffset = config.Bind(
             "Camera",
