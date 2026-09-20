@@ -28,7 +28,20 @@ public class NOVRFlightHudBehavior : UIRenderedCanvasBehavior
         var hmdcenter = FindChildStartingWith(transform, "HMDCenter");
         if (hmdcenter != null) hmdcenter.gameObject.AddComponent(typeof(NOVRHMDBehavior));
         
-        if (hudcenter != null)
+        // Stock NOVR pulls the weapon (TopRightPanel) and minimap (LowerLeftPanel) panels off the
+        // helmet display, pins them among the fixed forward HUD symbology and strips their
+        // backgrounds. In helmet mode they stay head-locked with the stock background and layout,
+        // and are placed by angle toward the corners of the view (see PlaceHelmetSidePanels).
+        _helmetSidePanels = ModConfiguration.Instance?.HelmetMountedSidePanels.Value ?? true;
+        if (_helmetSidePanels && hmdcenter != null)
+        {
+            _hmdCenter = hmdcenter;
+            _weaponPanel = FindChildStartingWith(transform, "TopRightPanel");
+            _mapPanel = FindChildStartingWith(transform, "LowerLeftPanel");
+            if (_weaponPanel != null) _weaponPanel.SetParent(hmdcenter, false);
+            if (_mapPanel != null) _mapPanel.SetParent(hmdcenter, false);
+        }
+        else if (hudcenter != null)
         {
             MoveHmdPanelToHud("TopRightPanel", hudcenter, new Vector3(330, 290, 0f), new Vector3(0.6f, 0.6f, 0.6f));
             MoveHmdPanelToHud("LowerLeftPanel", hudcenter, new Vector3(-400f, 80f, 0f), new Vector3(0.6f, 0.6f, 0.6f));
@@ -42,6 +55,14 @@ public class NOVRFlightHudBehavior : UIRenderedCanvasBehavior
             gameObject.AddComponent<PitchCompassBehavior>();
         }
 
+        // Only when mosdef31's FunnelGunSight is installed: it draws with OnGUI + GL in screen
+        // pixels, which never reaches the headset, so its sight is redrawn on the HUD sphere.
+        if (NOVR.Compat.FunnelGunSightVrAdapter.ModPresent &&
+            !gameObject.TryGetComponent<NOVR.Compat.FunnelGunSightVrAdapter>(out _))
+        {
+            gameObject.AddComponent<NOVR.Compat.FunnelGunSightVrAdapter>();
+        }
+
         // var velocityVector = FindChildStartingWith(transform, "velocityVector");
         // if (velocityVector != null) velocityVector.gameObject.AddComponent(typeof(NOVRVelocityVectorBehavior));
     }
@@ -52,6 +73,56 @@ public class NOVRFlightHudBehavior : UIRenderedCanvasBehavior
         transform.rotation = Quaternion.identity;
         ApplyHudScale();
         ApplyCompassOffset();
+        PlaceHelmetSidePanels();
+    }
+
+    private bool _helmetSidePanels;
+    private Transform _hmdCenter;
+    private Transform _weaponPanel;
+    private Transform _mapPanel;
+
+    // HMDCenter is head-slaved by NOVRHMDBehavior (1000 units along the head's forward, same
+    // rotation), so a child at local (x, y, 0) sits at a fixed spot in the pilot's view. Placement is
+    // by ANGLE from the view centre rather than canvas pixels so the panels do not drift when HUD
+    // Scale changes, and their size is divided by the parent's lossy scale for the same reason.
+    // Each panel is yawed/pitched to face the eye so it does not look sheared out at the corner.
+    private void PlaceHelmetSidePanels()
+    {
+        if (!_helmetSidePanels || _hmdCenter == null) return;
+
+        var config = ModConfiguration.Instance;
+        if (config == null) return;
+
+        var parentScale = _hmdCenter.lossyScale.x;
+        if (parentScale <= Mathf.Epsilon) return;
+
+        var horizontal = config.SidePanelHorizontalAngle.Value;
+        var size = config.SidePanelSize.Value;
+        var showBackground = config.SidePanelBackgrounds.Value;
+
+        PlaceHelmetPanel(_weaponPanel, horizontal, config.WeaponPanelVerticalAngle.Value, size, parentScale, showBackground);
+        PlaceHelmetPanel(_mapPanel, -horizontal, config.MapPanelVerticalAngle.Value, size, parentScale, showBackground);
+    }
+
+    private static void PlaceHelmetPanel(Transform panel, float yawDegrees, float pitchDegrees, float size, float parentScale, bool showBackground)
+    {
+        if (panel == null) return;
+
+        const float helmetDistance = 1000f;
+        panel.localPosition = new Vector3(
+            Mathf.Tan(yawDegrees * Mathf.Deg2Rad) * helmetDistance / parentScale,
+            Mathf.Tan(pitchDegrees * Mathf.Deg2Rad) * helmetDistance / parentScale,
+            0f);
+        panel.localEulerAngles = new Vector3(-pitchDegrees, yawDegrees, 0f);
+
+        // 0.4 world units per canvas pixel is what the panels measured at before (0.6 local x 0.67).
+        var localScale = 0.4f * size / parentScale;
+        panel.localScale = new Vector3(localScale, localScale, localScale);
+
+        if (panel.TryGetComponent<Image>(out var background) && background.enabled != showBackground)
+        {
+            background.enabled = showBackground;
+        }
     }
 
     private void ApplyCompassOffset()

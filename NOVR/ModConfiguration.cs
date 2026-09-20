@@ -27,6 +27,13 @@ public class ModConfiguration
     public readonly ConfigEntry<bool> HideParkedMfdScreens;
     public readonly ConfigEntry<bool> DisableUnityXrCameraAutoTracking;
     public readonly ConfigEntry<bool> ProjectObjectiveOverlaysInVr;
+    public readonly ConfigEntry<bool> HelmetMountedSidePanels;
+    public readonly ConfigEntry<float> SidePanelHorizontalAngle;
+    public readonly ConfigEntry<float> WeaponPanelVerticalAngle;
+    public readonly ConfigEntry<float> MapPanelVerticalAngle;
+    public readonly ConfigEntry<float> SidePanelSize;
+    public readonly ConfigEntry<bool> SidePanelBackgrounds;
+    public readonly ConfigEntry<bool> FunnelGunSightVrAdapter;
     public readonly ConfigEntry<float> CockpitSeatForwardOffset;
     public readonly ConfigEntry<float> ExternalViewDistance;
     public readonly ConfigEntry<float> VrUiLayerRefreshInterval;
@@ -125,6 +132,56 @@ public class ModConfiguration
             "Project Objective Overlays In VR",
             true,
             "Re-projects the objective and waypoint HUD markers (arrow, dot, size ring and label) onto the VR HUD sphere. The stock code writes screen-pixel coordinates straight into world-space transforms, which on NOVR's world-space HUDCanvas makes those markers appear warped and hard to see. Also replaces the stock label anti-overlap pass with one that works on the HUD sphere. Applies live.");
+
+        HelmetMountedSidePanels = config.Bind(
+            "HUD Side Panels",
+            "Helmet Mounted Side Panels",
+            true,
+            "Keeps the weapon panel and the minimap on the helmet display (head-locked) with their stock background and layout, instead of pinning them among the fixed forward HUD symbology with the background removed. Read when you enter a cockpit.");
+
+        SidePanelHorizontalAngle = config.Bind(
+            "HUD Side Panels",
+            "Horizontal Angle",
+            26.0f,
+            new ConfigDescription(
+                "Degrees left/right of the view centre. The weapon panel goes right, the minimap left. Larger pushes them further toward the edges of your field of view. Applies live.",
+                new AcceptableValueRange<float>(5.0f, 50.0f)));
+
+        WeaponPanelVerticalAngle = config.Bind(
+            "HUD Side Panels",
+            "Weapon Panel Vertical Angle",
+            16.0f,
+            new ConfigDescription(
+                "Degrees above (+) or below (-) the view centre for the weapon panel. Applies live.",
+                new AcceptableValueRange<float>(-40.0f, 40.0f)));
+
+        MapPanelVerticalAngle = config.Bind(
+            "HUD Side Panels",
+            "Map Panel Vertical Angle",
+            -18.0f,
+            new ConfigDescription(
+                "Degrees above (+) or below (-) the view centre for the minimap. Applies live.",
+                new AcceptableValueRange<float>(-40.0f, 40.0f)));
+
+        SidePanelSize = config.Bind(
+            "HUD Side Panels",
+            "Size",
+            1.0f,
+            new ConfigDescription(
+                "Size multiplier for both panels. Independent of HUD Scale, so shrinking the HUD does not make these unreadable. Applies live.",
+                new AcceptableValueRange<float>(0.25f, 3.0f)));
+
+        SidePanelBackgrounds = config.Bind(
+            "HUD Side Panels",
+            "Backgrounds",
+            true,
+            "Draw the stock panel backgrounds, as in the non-VR game. Applies live.");
+
+        FunnelGunSightVrAdapter = config.Bind(
+            "Compatibility",
+            "FunnelGunSight VR Adapter",
+            true,
+            "When the FunnelGunSight mod is installed, redraws its funnel, gun cross and range/ground/lead rings on the VR HUD. That mod draws with OnGUI and GL in screen pixels, which only reaches the desktop window and never the headset. Text labels are not reproduced. Applies live.");
 
         CockpitSeatForwardOffset = config.Bind(
             "Camera",
