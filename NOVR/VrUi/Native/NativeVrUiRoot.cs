@@ -68,13 +68,62 @@ public class NativeVrUiRoot : NOVRBehaviour
     public GameObject? OriginalMainCanvas => _mainCanvas;
     public NativeGameActionAdapter Actions => _actions;
 
+    // Frames to wait before re-capturing the menu anchor after a recenter. The recenter changes
+    // NOVRHeadsetData's calibration offsets, which only reach the head reference on the next pose
+    // update; capturing in the same frame reads the PRE-recenter pose (which is presumably why the
+    // re-capture in RecenterMenuImmediately had been commented out, leaving the menu un-recentred).
+    private const int AnchorRecaptureDelayFrames = 3;
+    private const float TrackingOriginScanIntervalSeconds = 2f;
+    private int _anchorRecaptureFrames;
+    private float _nextTrackingOriginScanTime;
+    private readonly List<UnityEngine.XR.XRInputSubsystem> _inputSubsystemScratch = new();
+    private readonly HashSet<UnityEngine.XR.XRInputSubsystem> _watchedInputSubsystems = new();
+
     private void Start()
     {
         RefreshEnabledState();
     }
 
+    private void OnDestroy()
+    {
+        foreach (var subsystem in _watchedInputSubsystems)
+        {
+            if (subsystem != null) subsystem.trackingOriginUpdated -= OnTrackingOriginUpdated;
+        }
+        _watchedInputSubsystems.Clear();
+    }
+
+    // The headset's own recenter (e.g. holding the Meta button) moves the tracking origin without
+    // going through NOVR at all, which leaves the stored anchor just as stale as NOVR's own recenter.
+    private void WatchForTrackingOriginResets()
+    {
+        if (Time.unscaledTime < _nextTrackingOriginScanTime) return;
+        _nextTrackingOriginScanTime = Time.unscaledTime + TrackingOriginScanIntervalSeconds;
+
+        SubsystemManager.GetInstances(_inputSubsystemScratch);
+        for (var index = 0; index < _inputSubsystemScratch.Count; index++)
+        {
+            var subsystem = _inputSubsystemScratch[index];
+            if (subsystem == null || !_watchedInputSubsystems.Add(subsystem)) continue;
+            subsystem.trackingOriginUpdated += OnTrackingOriginUpdated;
+        }
+    }
+
+    private void OnTrackingOriginUpdated(UnityEngine.XR.XRInputSubsystem subsystem)
+    {
+        _anchorRecaptureFrames = AnchorRecaptureDelayFrames;
+        Debug.Log("[NOVR] Tracking origin was reset; native VR UI anchor will be re-captured.");
+    }
+
     private void Update()
     {
+        WatchForTrackingOriginResets();
+        if (_anchorRecaptureFrames > 0 && --_anchorRecaptureFrames == 0)
+        {
+            // UpdatePlacement re-captures from the (now recentred) head reference when this is false.
+            _menuAnchorInitialized = false;
+        }
+
         _pointerState.Update(VrUiCursor.I);
         EnsureRoot();
         ScanForMainMenuCanvas();
@@ -347,10 +396,10 @@ public class NativeVrUiRoot : NOVRBehaviour
 
     private void RecenterMenuImmediately()
     {
-        // CaptureMenuAnchor();
-        // UpdatePlacement(true);
         NOVRHeadsetData.CalibrateTranslation();
         NOVRHeadsetData.CalibrateRotation();
+        // Re-anchor the menu too, but a few frames later - see AnchorRecaptureDelayFrames.
+        _anchorRecaptureFrames = AnchorRecaptureDelayFrames;
         _recenterPending = false;
         UpdateRecenterButtonText();
         Debug.Log("[NOVR] Native VR UI recentered.");
