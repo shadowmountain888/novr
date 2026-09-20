@@ -93,9 +93,10 @@ public class NOVRPoseDriver: NOVRBehaviour
             // Only while actually seated in an aircraft. The main menu camera also carries a
             // VrCamera, so an unconditional offset shifts the menu camera too - which moves the
             // anchor the native menu is placed against and leaves recentering misaligned.
-            if (seatForwardOffset != 0f && GameManager.GetLocalAircraft(out _))
+            var seatHeightOffset = ModConfiguration.Instance?.CockpitSeatHeightOffset.Value ?? 0f;
+            if ((seatForwardOffset != 0f || seatHeightOffset != 0f) && GameManager.GetLocalAircraft(out _))
             {
-                localPosition += new Vector3(0f, 0f, seatForwardOffset);
+                localPosition += new Vector3(0f, seatHeightOffset, seatForwardOffset);
             }
         }
 

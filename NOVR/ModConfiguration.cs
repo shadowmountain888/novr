@@ -34,6 +34,8 @@ public class ModConfiguration
     public readonly ConfigEntry<float> SidePanelSize;
     public readonly ConfigEntry<bool> SidePanelBackgrounds;
     public readonly ConfigEntry<bool> FunnelGunSightVrAdapter;
+    public readonly ConfigEntry<string> TuningMenuKey;
+    public readonly ConfigEntry<float> CockpitSeatHeightOffset;
     public readonly ConfigEntry<float> CockpitSeatForwardOffset;
     public readonly ConfigEntry<float> ExternalViewDistance;
     public readonly ConfigEntry<float> VrUiLayerRefreshInterval;
@@ -79,7 +81,7 @@ public class ModConfiguration
             0.5f,
             new ConfigDescription(
                 "Overall size multiplier for the in-flight HUD (HUDCanvas and everything under it). 1.0 is the stock size, 0.5 is half size. Applies live.",
-                new AcceptableValueRange<float>(0.25f, 2.0f)));
+                new AcceptableValueRange<float>(0.1f, 2.0f)));
 
         SinglePlayerMinimumRank = config.Bind(
             "Gameplay",
@@ -182,6 +184,20 @@ public class ModConfiguration
             "FunnelGunSight VR Adapter",
             true,
             "When the FunnelGunSight mod is installed, redraws its funnel, gun cross and range/ground/lead rings on the VR HUD. That mod draws with OnGUI and GL in screen pixels, which only reaches the desktop window and never the headset. Text labels are not reproduced. Applies live.");
+
+        TuningMenuKey = config.Bind(
+            "General",
+            "Cockpit Tuning Menu Key",
+            "F8",
+            "Key that opens and closes the in-cockpit HUD and seat tuning menu. Any UnityEngine.InputSystem.Key name (F8, F10, Backquote, Numpad0 ...). Read when you enter a cockpit.");
+
+        CockpitSeatHeightOffset = config.Bind(
+            "Camera",
+            "Cockpit Seat Height Offset",
+            0.0f,
+            new ConfigDescription(
+                "How far up or down you sit in the cockpit, in meters. Positive raises you. Applies live.",
+                new AcceptableValueRange<float>(-0.3f, 0.3f)));
 
         CockpitSeatForwardOffset = config.Bind(
             "Camera",

@@ -55,6 +55,11 @@ public class NOVRFlightHudBehavior : UIRenderedCanvasBehavior
             gameObject.AddComponent<PitchCompassBehavior>();
         }
 
+        if (!gameObject.TryGetComponent<NOVR.VrUi.Native.CockpitHudTuningMenu>(out _))
+        {
+            gameObject.AddComponent<NOVR.VrUi.Native.CockpitHudTuningMenu>();
+        }
+
         // Only when mosdef31's FunnelGunSight is installed: it draws with OnGUI + GL in screen
         // pixels, which never reaches the headset, so its sight is redrawn on the HUD sphere.
         if (NOVR.Compat.FunnelGunSightVrAdapter.ModPresent &&
