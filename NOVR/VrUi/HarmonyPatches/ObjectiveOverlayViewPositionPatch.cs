@@ -108,19 +108,27 @@ internal static class ObjectiveOverlayViewPositionPatch
             objectiveInfo.enabled = true;
 
             var cameraTransform = cockpitHudCamera.transform;
-            var hudRotation = cameraTransform.rotation;
             var worldPosition = result.Position.ToLocalPosition();
 
             // Stock off-screen test: > 90 degrees from the view axis OR outside the screen rectangle.
             // PinToScreenEdge is the VR equivalent (behind the head OR outside the 50x50 degree ellipse)
             // and also hands back the edge-pinned sphere point plus the outward arrow angle.
-            var offScreen = VrHudProjection.PinToScreenEdge(worldPosition, out var hudPosition, out var arrowAngle);
+            // The stock 50 degree window is a monitor-sized cone that follows the head, so a waypoint only
+            // slightly off-axis was dragged around by every glance. Use a headset-sized cone instead.
+            var edgeCone = (ModConfiguration.Instance?.ObjectiveMarkerEdgeCone.Value ?? 90.0f) * 0.5f;
+            var offScreen = VrHudProjection.PinToScreenEdge(worldPosition, out var hudPosition, out var arrowAngle, edgeCone, edgeCone * 0.85f);
             if (!offScreen && VrHudProjection.TryProjectToCockpitHud(worldPosition, out var projectedHudPosition))
                 hudPosition = projectedHudPosition;
 
             // Stock rule kept verbatim: arrow when the target is more than 10 degrees off the view axis, dot otherwise.
-            var angleFromView = Vector3.Angle(mainCamera.transform.forward, result.Direction);
-            var showPointer = offScreen || angleFromView > PointerAngleDegrees;
+            // Stock swaps the dot for an arrow beyond 10 degrees from the view axis. With a head-driven
+            // view axis that flips the symbol on every glance, so the arrow is kept for edge-pinned only.
+            var showPointer = offScreen;
+
+            // Face the eye from where the marker actually sits on the HUD sphere. Copying the head
+            // rotation keeps the quad parallel to the view plane, which shears it off-axis and makes it
+            // visibly swivel as the head turns.
+            var hudRotation = Quaternion.LookRotation(hudPosition - cameraTransform.position, cameraTransform.up);
 
             objectivePointer.transform.position = hudPosition;
             objectiveDot.transform.position = hudPosition;
@@ -252,7 +260,7 @@ internal static class ObjectiveOverlayViewPositionPatch
         var desiredUp = cameraTransform.right * Mathf.Cos(arrowAngle) + cameraTransform.up * Mathf.Sin(arrowAngle);
         if (desiredUp.sqrMagnitude <= Mathf.Epsilon)
             desiredUp = cameraTransform.up;
-        pointer.rotation = Quaternion.LookRotation(cameraTransform.forward, desiredUp.normalized);
+        pointer.rotation = Quaternion.LookRotation(pointer.position - cameraTransform.position, desiredUp.normalized);
     }
 
     /// <summary>

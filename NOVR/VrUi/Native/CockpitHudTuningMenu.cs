@@ -245,6 +245,7 @@ public class CockpitHudTuningMenu : MonoBehaviour
             panel => AddSlider(panel, "COMPASS HEIGHT", config.CompassVerticalOffset),
             panel => AddSlider(panel, "PITCH LADDER RANGE (deg)", config.PitchLadderVisibleRange, 5f),
             panel => AddSlider(panel, "PITCH LADDER SIZE *", config.PitchLadderScale),
+            panel => AddSlider(panel, "WAYPOINT EDGE CONE (deg)", config.ObjectiveMarkerEdgeCone, 5f),
             panel => AddHeader(panel, "WEAPON PANEL  +  MINIMAP"),
             panel => AddToggle(panel, "FOLLOW HEAD  (off = fixed to nose)", config.SidePanelsFollowHead),
             panel => AddSlider(panel, "WEAPON LEFT / RIGHT (deg)", config.WeaponPanelHorizontalAngle),

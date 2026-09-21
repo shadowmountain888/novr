@@ -42,7 +42,10 @@ internal static class VrHudProjection
         return true;
     }
 
-    public static bool PinToScreenEdge(Vector3 worldPosition, out Vector3 hudPosition, out float arrowAngle)
+    public static bool PinToScreenEdge(Vector3 worldPosition, out Vector3 hudPosition, out float arrowAngle) =>
+        PinToScreenEdge(worldPosition, out hudPosition, out arrowAngle, VrViewportHalfHorizontalDegrees, VrViewportHalfVerticalDegrees);
+
+    public static bool PinToScreenEdge(Vector3 worldPosition, out Vector3 hudPosition, out float arrowAngle, float halfHorizontalDegrees, float halfVerticalDegrees)
     {
         hudPosition = Vector3.zero;
         arrowAngle = 0.0f;
@@ -64,8 +67,8 @@ internal static class VrHudProjection
             mainCameraLocalDirection.y,
             new Vector2(mainCameraLocalDirection.x, mainCameraLocalDirection.z).magnitude) * Mathf.Rad2Deg;
 
-        var horizontalRatio = targetYawDegrees / VrViewportHalfHorizontalDegrees;
-        var verticalRatio = targetPitchDegrees / VrViewportHalfVerticalDegrees;
+        var horizontalRatio = targetYawDegrees / halfHorizontalDegrees;
+        var verticalRatio = targetPitchDegrees / halfVerticalDegrees;
         var ellipseDistance = Mathf.Sqrt(horizontalRatio * horizontalRatio + verticalRatio * verticalRatio);
         var screenEdge = mainCameraLocalDirection.z <= 0.0f || ellipseDistance > 1.0f;
 

@@ -38,6 +38,7 @@ public class ModConfiguration
     public readonly ConfigEntry<bool> SidePanelBackgrounds;
     public readonly ConfigEntry<bool> FunnelGunSightVrAdapter;
     public readonly ConfigEntry<string> TuningMenuKey;
+    public readonly ConfigEntry<float> ObjectiveMarkerEdgeCone;
     public readonly ConfigEntry<float> ChatHorizontalAngle;
     public readonly ConfigEntry<float> ChatVerticalAngle;
     public readonly ConfigEntry<float> ChatSize;
@@ -224,6 +225,14 @@ public class ModConfiguration
             "Cockpit Tuning Menu Key",
             "F8",
             "Key that opens and closes the in-cockpit HUD and seat tuning menu. Any UnityEngine.InputSystem.Key name (F8, F10, Backquote, Numpad0 ...). Read when you enter a cockpit.");
+
+        ObjectiveMarkerEdgeCone = config.Bind(
+            "HUD",
+            "Objective Marker Edge Cone",
+            90.0f,
+            new ConfigDescription(
+                "Width in degrees of the head-centred cone inside which waypoint and objective markers sit at their true position. Outside it they become an arrow pinned to the cone edge. Stock NOVR used 50. Applies live.",
+                new AcceptableValueRange<float>(40.0f, 120.0f)));
 
         ChatHorizontalAngle = BindPlacement(config, "Chat Horizontal Angle", 0.0f, -60.0f, 60.0f, "Degrees right (+) or left (-) to move the chat, message and kill feed canvas. Applies live.");
         ChatVerticalAngle = BindPlacement(config, "Chat Vertical Angle", 0.0f, -45.0f, 45.0f, "Degrees up (+) or down (-) to move the chat, message and kill feed canvas. Applies live.");
