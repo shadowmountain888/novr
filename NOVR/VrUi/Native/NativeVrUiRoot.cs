@@ -144,7 +144,9 @@ public class NativeVrUiRoot : NOVRBehaviour
         }
 
         var mainCanvasActive = _mainCanvas != null && _mainCanvas.activeInHierarchy;
-        var controlMapperOpen = IsControlMapperOpen();
+        // The stock customize-mission panel has no native replacement, so while it is open the
+        // stock canvas is handed back, exactly as for the control mapper.
+        var controlMapperOpen = IsControlMapperOpen() || IsCustomizeMissionOpen();
         var topLevelMainMenuAvailable = _actions.IsTopLevelMainMenuAvailable;
         var waitingForSinglePlayerMissionPicker = _singlePlayerMissionPickerRequested &&
                                                   Time.unscaledTime - _singlePlayerMissionPickerRequestTime < RequestedMenuTransitionSeconds;
@@ -580,7 +582,7 @@ public class NativeVrUiRoot : NOVRBehaviour
 
     private bool ShouldShowStockNativeUiToggle()
     {
-        if (_mainCanvas == null || !_mainCanvas.activeInHierarchy || IsControlMapperOpen())
+        if (_mainCanvas == null || !_mainCanvas.activeInHierarchy || IsControlMapperOpen() || IsCustomizeMissionOpen())
         {
             return false;
         }
@@ -735,6 +737,22 @@ public class NativeVrUiRoot : NOVRBehaviour
             {
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    private static readonly System.Reflection.FieldInfo CustomizeHolderField =
+        HarmonyLib.AccessTools.Field(typeof(global::CustomizeMissionMenu), "holder");
+
+    private bool IsCustomizeMissionOpen()
+    {
+        if (_mainCanvas == null || CustomizeHolderField == null) return false;
+
+        var menus = _mainCanvas.GetComponentsInChildren<global::CustomizeMissionMenu>(true);
+        for (var index = 0; index < menus.Length; index++)
+        {
+            if (CustomizeHolderField.GetValue(menus[index]) is GameObject holder && holder.activeInHierarchy) return true;
         }
 
         return false;
