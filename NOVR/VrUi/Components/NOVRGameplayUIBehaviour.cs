@@ -64,17 +64,8 @@ public class NOVRGameplayUIBehaviour : UIRenderedCanvasBehavior
             Mathf.Tan(yaw * Mathf.Deg2Rad) * CanvasDistance,
             Mathf.Tan(pitch * Mathf.Deg2Rad) * CanvasDistance,
             CanvasDistance);
-        // Face the actual eye, not the origin: on SteamVR the seated origin can sit well away
-        // from the head, and an angle-only rotation then leaves the canvas turned away.
-        transform.rotation = FacingEye(transform.position, Vector3.up);
-    }
-
-    internal static Quaternion FacingEye(Vector3 position, Vector3 up)
-    {
-        var camera = APIBus.CockpitHudCamera;
-        var eye = camera != null ? camera.transform.position : Vector3.zero;
-        var direction = position - eye;
-        return direction.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(direction, up) : Quaternion.identity;
+        // Kept flat and square to the view axis like an MFD, however far it is moved.
+        transform.rotation = Quaternion.identity;
     }
 
     // The mission dialogue box is a child of GameplayUICanvas, which also carries the MFD and other
