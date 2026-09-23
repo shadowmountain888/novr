@@ -125,7 +125,9 @@ public class NOVRFlightHudBehavior : UIRenderedCanvasBehavior
             Mathf.Tan(yawDegrees * Mathf.Deg2Rad) * helmetDistance / parentScale,
             Mathf.Tan(pitchDegrees * Mathf.Deg2Rad) * helmetDistance / parentScale,
             0f);
-        panel.localEulerAngles = new Vector3(-pitchDegrees, yawDegrees, 0f);
+        // Turned to face the eye from wherever the panel actually ended up, rolled with its parent
+        // (the head when following it, the aircraft otherwise).
+        panel.rotation = NOVRGameplayUIBehaviour.FacingEye(panel.position, panel.parent != null ? panel.parent.up : Vector3.up);
 
         // 0.4 world units per canvas pixel is what the panels measured at before (0.6 local x 0.67).
         var localScale = 0.4f * size / parentScale;
