@@ -19,7 +19,7 @@ public class NOVRHeadsetData : NOVRBehaviour
     public static Vector3 TranslationAnchor { get; private set; }
     public static Vector3 Translation { get; private set; }
     public static Vector3 TranslationCalibrationOffset { get; private set; }
-    public static Vector3 TranslationError => Translation - TranslationCalibrationOffset - TranslationAnchor;
+    public static Vector3 TranslationError => Quaternion.Inverse(RotationCalibrationOffset) * (Translation - TranslationAnchor) - TranslationCalibrationOffset;
 
     public static Quaternion Rotation { get; private set; }
     public static Quaternion RotationCalibrationOffset { get; private set; } = Quaternion.identity;
@@ -128,7 +128,11 @@ public class NOVRHeadsetData : NOVRBehaviour
     {
         if (_trackingRotationMethod != null && _trackingPositionMethod != null)
         {
-            Translation = TranslationAnchor + TranslationCalibrationOffset + (Vector3)_trackingPositionMethod.Invoke(null, TrackingMethodArgs);
+            // The recenter yaw has to turn the head movement too, not just the view. Otherwise, whenever
+            // the runtime's own forward differs from the way you sit (common on SteamVR, whose seated
+            // origin is fixed by room setup), leaning forward moves you sideways in the cockpit.
+            var rawPosition = (Vector3)_trackingPositionMethod.Invoke(null, TrackingMethodArgs);
+            Translation = TranslationAnchor + RotationCalibrationOffset * (rawPosition + TranslationCalibrationOffset);
             Rotation = RotationCalibrationOffset * (Quaternion)_trackingRotationMethod.Invoke(null, TrackingMethodArgs);
         }
     }
