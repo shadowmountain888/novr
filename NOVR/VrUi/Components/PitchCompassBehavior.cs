@@ -27,6 +27,7 @@ public class PitchCompassBehavior : MonoBehaviour
     private readonly List<KeyValuePair<Transform, float>> _slicePitches = new();
     
     
+    private float _appliedSliceScale = float.NaN;
     private FlightHud _flightHud;
     private Transform _cockpitTransform;
 
@@ -67,8 +68,19 @@ public class PitchCompassBehavior : MonoBehaviour
     // The full sphere is still built, but only the band around the current pitch is enabled.
     private void UpdateSliceVisibility()
     {
-        var visibleRange = ModConfiguration.Instance?.PitchLadderVisibleRange.Value ?? 30f;
+        var config = ModConfiguration.Instance;
+        var visibleRange = config?.PitchLadderVisibleRange.Value ?? 30f;
         var showAll = visibleRange >= 360f;
+
+        // Optional: no ladder once the gear is up and locked (shown again while it cycles or is down).
+        var hideAll = config?.PitchLadderHideWhenGearUp.Value == true
+                      && GameManager.GetLocalAircraft(out var aircraft)
+                      && aircraft.gearState == LandingGear.GearState.LockedRetracted;
+
+        // Size applies live; only rescale when the setting actually changed.
+        var sliceScale = config?.PitchLadderScale.Value ?? 0.8f;
+        var rescale = !Mathf.Approximately(sliceScale, _appliedSliceScale);
+        _appliedSliceScale = sliceScale;
         var halfRange = visibleRange * 0.5f;
 
         var cockpitForward = _cockpitTransform.forward;
@@ -78,9 +90,10 @@ public class PitchCompassBehavior : MonoBehaviour
         {
             var sliceTransform = _slicePitches[i].Key;
             if (sliceTransform == null) continue;
+            if (rescale) sliceTransform.localScale = new Vector3(sliceScale, sliceScale, sliceScale);
 
-            var visible = showAll ||
-                          Mathf.Abs(Mathf.DeltaAngle(_slicePitches[i].Value, currentPitch)) <= halfRange;
+            var visible = !hideAll && (showAll ||
+                          Mathf.Abs(Mathf.DeltaAngle(_slicePitches[i].Value, currentPitch)) <= halfRange);
 
             if (sliceTransform.gameObject.activeSelf != visible)
             {

@@ -17,6 +17,7 @@ public class ModConfiguration
     public readonly ConfigEntry<float> NativeMenuHeightOffset;
     public readonly ConfigEntry<float> PitchLadderVisibleRange;
     public readonly ConfigEntry<float> PitchLadderScale;
+    public readonly ConfigEntry<bool> PitchLadderHideWhenGearUp;
     public readonly ConfigEntry<float> HudScale;
     public readonly ConfigEntry<float> CompassVerticalOffset;
     public readonly ConfigEntry<int> SinglePlayerMinimumRank;
@@ -313,12 +314,18 @@ public class ModConfiguration
                 "Total degrees of pitch ladder shown around the aircraft's current pitch, matching how a real HUD only shows a narrow band. Set to 360 to restore the original full-sphere ladder.",
                 new AcceptableValueRange<float>(10.0f, 360.0f)));
 
+        PitchLadderHideWhenGearUp = config.Bind(
+            "HUD",
+            "Hide Pitch Ladder When Gear Up",
+            false,
+            "Hides the pitch ladder while the landing gear is up and locked, and shows it again while the gear cycles or is down. Applies live.");
+
         PitchLadderScale = config.Bind(
             "HUD",
             "Pitch Ladder Scale",
             0.8f,
             new ConfigDescription(
-                "Size multiplier for the pitch ladder slices. The stock value is 0.8; lower it to shrink the ladder. Requires re-entering a cockpit to take effect.",
+                "Size multiplier for the pitch ladder slices. The stock value is 0.8; lower it to shrink the ladder. Applies live.",
                 new AcceptableValueRange<float>(0.1f, 2.0f)));
     }
 

@@ -39,7 +39,7 @@ public class CockpitHudTuningMenu : MonoBehaviour
     private static readonly Color HeaderTextColor = new(0.84f, 0.90f, 0.92f, 1f);
 
     private readonly List<Action> _refreshers = new();
-    private readonly List<Action> _resetters = new();
+    private List<Action> _resetters = new();
 
     private GameObject _root;
     private Canvas _canvas;
@@ -150,6 +150,12 @@ public class CockpitHudTuningMenu : MonoBehaviour
     {
         if (!_open) return;
 
+        if (_realHudStatus != null && _realHud != null && Time.unscaledTime >= _nextStatusRefresh)
+        {
+            _nextStatusRefresh = Time.unscaledTime + 0.25f;
+            _realHudStatus.text = _realHud.Status();
+        }
+
         if (Cursor.lockState != CursorLockMode.None) Cursor.lockState = CursorLockMode.None;
         if (!Cursor.visible) Cursor.visible = true;
 
@@ -166,7 +172,7 @@ public class CockpitHudTuningMenu : MonoBehaviour
         EnsureBuilt();
         CaptureAnchor();
         ApplyPlacement();
-        for (var index = 0; index < _refreshers.Count; index++) _refreshers[index]();
+        RefreshAll();
 
         _previousLockState = Cursor.lockState;
         _previousCursorVisible = Cursor.visible;
@@ -237,14 +243,17 @@ public class CockpitHudTuningMenu : MonoBehaviour
         _canvas.sortingOrder = 6000;
         _root.AddComponent<GraphicRaycaster>();
 
-        // Build top-down; the panel height is whatever the rows add up to.
-        var rows = new List<Action<RectTransform>>
+        var panelRect = CreateRect("Panel", rootRect, Vector2.zero, new Vector2(PanelWidth, 100f));
+        panelRect.gameObject.AddComponent<Image>().color = PanelColor;
+
+        var novrRows = new List<Action<RectTransform>>
         {
             panel => AddHeader(panel, "HUD"),
             panel => AddSlider(panel, "HUD SIZE", config.HudScale),
             panel => AddSlider(panel, "COMPASS HEIGHT", config.CompassVerticalOffset),
             panel => AddSlider(panel, "PITCH LADDER RANGE (deg)", config.PitchLadderVisibleRange, 5f),
-            panel => AddSlider(panel, "PITCH LADDER SIZE *", config.PitchLadderScale),
+            panel => AddSlider(panel, "PITCH LADDER SIZE", config.PitchLadderScale),
+            panel => AddToggle(panel, "HIDE PITCH LADDER WHEN GEAR UP", config.PitchLadderHideWhenGearUp),
             panel => AddSlider(panel, "WAYPOINT EDGE CONE (deg)", config.ObjectiveMarkerEdgeCone, 5f),
             panel => AddHeader(panel, "WEAPON PANEL  +  MINIMAP"),
             panel => AddToggle(panel, "FOLLOW HEAD  (off = fixed to nose)", config.SidePanelsFollowHead),
@@ -272,32 +281,149 @@ public class CockpitHudTuningMenu : MonoBehaviour
             panel => AddSlider(panel, "MENU UP / DOWN (deg)", config.TuningMenuHeightAngle, 1f, ApplyPlacement),
         };
 
-        var headerCount = 5;
-        var contentHeight = headerCount * HeaderHeight + (rows.Count - headerCount) * RowHeight;
-        var panelHeight = contentHeight + 150f;
+        // Pages are built top-down into their own containers; the panel is sized to the tallest.
+        var pageHeights = new List<float> { BuildPage(panelRect, novrRows) };
+        var pageTitles = new List<string> { "NOVR HUD + SEAT" };
+
+        var realHud = RealHudBridge.TryCreate();
+        if (realHud != null)
+        {
+            pageHeights.Add(BuildPage(panelRect, RealHudRows(realHud)));
+            pageTitles.Add("REALHUD (speed, altitude, fuel...)");
+        }
+
+        var hasTabs = _pages.Count > 1;
+        var topArea = hasTabs ? 120f : 66f;
+        const float bottomArea = 100f;
+        var maxPage = 0f;
+        foreach (var height in pageHeights) maxPage = Mathf.Max(maxPage, height);
+        var panelHeight = topArea + maxPage + bottomArea;
         rootRect.sizeDelta = new Vector2(PanelWidth, panelHeight);
+        panelRect.sizeDelta = new Vector2(PanelWidth, panelHeight);
+        foreach (var page in _pages) page.anchoredPosition = new Vector2(0f, panelHeight * 0.5f - topArea);
 
-        var panelRect = CreateRect("Panel", rootRect, Vector2.zero, new Vector2(PanelWidth, panelHeight));
-        panelRect.gameObject.AddComponent<Image>().color = PanelColor;
-
-        CreateText("Title", panelRect, "NOVR  -  HUD & SEAT TUNING", new Vector2(0f, panelHeight * 0.5f - 30f), new Vector2(PanelWidth - 60f, 34f), 22, TextAnchor.MiddleCenter, Color.white);
-
-        _cursorY = panelHeight * 0.5f - 66f;
-        for (var index = 0; index < rows.Count; index++) rows[index](panelRect);
+        CreateText("Title", panelRect, "NOVR  -  COCKPIT TUNING", new Vector2(0f, panelHeight * 0.5f - 30f), new Vector2(PanelWidth - 60f, 34f), 22, TextAnchor.MiddleCenter, Color.white);
+        if (hasTabs)
+        {
+            var tabWidth = (PanelWidth - 80f) / _pages.Count;
+            for (var index = 0; index < _pages.Count; index++)
+            {
+                var pageIndex = index;
+                var x = -((PanelWidth - 80f) * 0.5f) + tabWidth * (index + 0.5f);
+                _tabButtons.Add(CreateButton(panelRect, pageTitles[index], new Vector2(x, panelHeight * 0.5f - 82f), new Vector2(tabWidth - 12f, 40f), ButtonColor, () => SelectPage(pageIndex), 15));
+            }
+        }
 
         var footerY = -panelHeight * 0.5f + 40f;
-        CreateButton(panelRect, "RESET ALL", new Vector2(-250f, footerY), new Vector2(200f, 42f), ButtonColor, ResetAll);
+        CreateButton(panelRect, "RESET PAGE", new Vector2(-250f, footerY), new Vector2(200f, 42f), ButtonColor, ResetAll);
         CreateButton(panelRect, $"CLOSE ({_toggleKey})", new Vector2(250f, footerY), new Vector2(200f, 42f), CloseColor, Close);
-        CreateText("Hint", panelRect, "Click a row, then Up/Down to nudge it (Shift = x10).   * needs cockpit re-entry.   Saved on close.", new Vector2(0f, footerY + 40f), new Vector2(PanelWidth - 60f, 24f), 13, TextAnchor.MiddleCenter, HeaderTextColor);
+        CreateText("Hint", panelRect, "Click a row, then Up/Down to nudge it (Shift = x10).   NOVR page saves on close; REALHUD page needs a SAVE button.", new Vector2(0f, footerY + 40f), new Vector2(PanelWidth - 60f, 24f), 13, TextAnchor.MiddleCenter, HeaderTextColor);
 
+        SelectPage(0);
         LayerHelper.SetLayerRecursive(_root.transform, LayerHelper.GetVrUiLayer());
         _root.SetActive(false);
     }
 
+    private readonly List<RectTransform> _pages = new();
+    private readonly List<List<Action>> _pageResetters = new();
+    private readonly List<Button> _tabButtons = new();
+    private int _page;
+    private RealHudBridge _realHud;
+    private Text _realHudStatus;
+    private float _nextStatusRefresh;
+
+    // A zero-height container pinned at the top of the page area; rows hang downward from it.
+    private float BuildPage(RectTransform panel, List<Action<RectTransform>> rows)
+    {
+        var page = CreateRect("Page " + _pages.Count, panel, Vector2.zero, new Vector2(PanelWidth, 0f));
+        _pages.Add(page);
+        _resetters = new List<Action>();
+        _pageResetters.Add(_resetters);
+        _cursorY = 0f;
+        for (var index = 0; index < rows.Count; index++) rows[index](page);
+        return -_cursorY;
+    }
+
+    private void SelectPage(int index)
+    {
+        _page = Mathf.Clamp(index, 0, _pages.Count - 1);
+        for (var i = 0; i < _pages.Count; i++) _pages[i].gameObject.SetActive(i == _page);
+        for (var i = 0; i < _tabButtons.Count; i++) NativeButtonFeedback.SetNormalColor(_tabButtons[i], i == _page ? FillColor : ButtonColor);
+        if (_selectedRowImage != null) _selectedRowImage.color = RowColor;
+        _selectedSlider = null;
+        _selectedRowImage = null;
+    }
+
+    // RealHUD's layout lives in its own mod; this page drives it through RealHUD.VrMenuApi so the
+    // tapes, fuel, POWER, AoA/Mach/G and climb rate can be placed inside the headset.
+    private List<Action<RectTransform>> RealHudRows(RealHudBridge api)
+    {
+        _realHud = api;
+        var rows = new List<Action<RectTransform>>
+        {
+            panel => AddHeader(panel, "REALHUD  -  edits apply live, use SAVE to keep them"),
+            panel =>
+            {
+                var row = AddRow(panel, "LAYOUT");
+                _realHudStatus = CreateText("RealHUD Status", row, "", new Vector2(160f, 0f), new Vector2(620f, 30f), 14, TextAnchor.MiddleLeft, HeaderTextColor);
+            },
+            panel => AddActionToggle(panel, "F-22 STYLE ON THIS PLANE", api.UseF22, api.ToggleF22),
+            panel => AddActionToggle(panel, "USE GLOBAL LAYOUT ON THIS PLANE", api.UseGlobal, api.ToggleGlobal),
+            panel =>
+            {
+                var row = AddRow(panel, "SAVE");
+                CreateButton(row, "TO GLOBAL", new Vector2(-10f, 0f), new Vector2(170f, 32f), FillColor, () => { api.SaveToGlobal(); RefreshAll(); }, 13);
+                CreateButton(row, "TO THIS PLANE", new Vector2(175f, 0f), new Vector2(170f, 32f), FillColor, () => { api.SaveToPlane(); RefreshAll(); }, 13);
+                CreateButton(row, "UNDO CHANGES", new Vector2(360f, 0f), new Vector2(170f, 32f), ButtonColor, () => { api.Revert(); RefreshAll(); }, 13);
+            },
+            panel => AddHeader(panel, "LAYOUT"),
+        };
+
+        foreach (var item in api.Rows())
+        {
+            var label = ((string)item[0]).ToUpperInvariant();
+            var entry = (ConfigEntry<float>)item[1];
+            var min = (float)item[2];
+            var max = (float)item[3];
+            var step = max - min > 100f ? 1f : 0f;
+            rows.Add(panel => AddSlider(panel, label, entry, step, null, min, max, () => api.SavedValue(entry)));
+        }
+
+        return rows;
+    }
+
+    // A toggle whose state lives elsewhere (RealHUD), read through getter and flipped through toggle.
+    private void AddActionToggle(RectTransform panel, string label, Func<bool> getter, Action toggle)
+    {
+        var row = AddRow(panel, label);
+        Button button = null;
+        Text buttonText = null;
+        void Refresh()
+        {
+            var on = getter();
+            if (buttonText != null) buttonText.text = on ? "ON" : "OFF";
+            if (button != null) NativeButtonFeedback.SetNormalColor(button, on ? FillColor : CloseColor);
+        }
+
+        button = CreateButton(row, "ON", new Vector2(60f, 0f), new Vector2(140f, 32f), FillColor, () =>
+        {
+            toggle();
+            RefreshAll();
+        });
+        buttonText = button.GetComponentInChildren<Text>();
+        _refreshers.Add(Refresh);
+    }
+
+    private void RefreshAll()
+    {
+        for (var index = 0; index < _refreshers.Count; index++) _refreshers[index]();
+        if (_realHudStatus != null && _realHud != null) _realHudStatus.text = _realHud.Status();
+    }
+
     private void ResetAll()
     {
-        for (var index = 0; index < _resetters.Count; index++) _resetters[index]();
-        for (var index = 0; index < _refreshers.Count; index++) _refreshers[index]();
+        if (_page < _pageResetters.Count) foreach (var reset in _pageResetters[_page]) reset();
+        RefreshAll();
     }
 
     private void AddHeader(RectTransform panel, string title)
@@ -318,7 +444,7 @@ public class CockpitHudTuningMenu : MonoBehaviour
     }
 
     // step > 0 snaps the value to multiples of step (the ladder range moves in 5 degree increments).
-    private void AddSlider(RectTransform panel, string label, ConfigEntry<float> entry, float step = 0f, Action onChanged = null)
+    private void AddSlider(RectTransform panel, string label, ConfigEntry<float> entry, float step = 0f, Action onChanged = null, float? minOverride = null, float? maxOverride = null, Func<float> resetValue = null)
     {
         var row = AddRow(panel, label);
 
@@ -329,6 +455,8 @@ public class CockpitHudTuningMenu : MonoBehaviour
             min = range.MinValue;
             max = range.MaxValue;
         }
+        if (minOverride.HasValue) min = minOverride.Value;
+        if (maxOverride.HasValue) max = maxOverride.Value;
 
         var valueText = CreateText(label + " Value", row, "", new Vector2(330f, 0f), new Vector2(110f, 30f), 15, TextAnchor.MiddleCenter, Color.white);
         var slider = CreateSlider(row, new Vector2(60f, 0f), new Vector2(400f, 26f), min, max);
@@ -369,15 +497,16 @@ public class CockpitHudTuningMenu : MonoBehaviour
         });
 
         var defaultValue = (float)entry.DefaultValue;
+        Func<float> resetTo = resetValue ?? (() => defaultValue);
         CreateButton(row, "RESET", new Vector2(425f, 0f), new Vector2(64f, 30f), ButtonColor, () =>
         {
-            entry.Value = defaultValue;
+            entry.Value = resetTo();
             Refresh();
             onChanged?.Invoke();
         }, 11);
 
         _refreshers.Add(Refresh);
-        _resetters.Add(() => entry.Value = defaultValue);
+        _resetters.Add(() => entry.Value = resetTo());
     }
 
     private void AddToggle(RectTransform panel, string label, ConfigEntry<bool> entry)
